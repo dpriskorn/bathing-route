@@ -46,44 +46,25 @@ just fe-test   # Frontend only (vitest)
 ## Architecture
 
 ```mermaid
-flowchart TD
-    subgraph Frontend["Frontend (Vue 3 + Vite)"]
-        A[GPX Upload] --> B[POST /api/analyze]
-        B --> C[GeoJSON Response]
-        C --> D[Filter by Layer]
-        D --> E[Display on Map - Leaflet CircleMarkers]
-        E --> F[Click Marker]
-        F --> G[Show Popup]
-        G --> H[fetch wikidata details]
-        H --> I[fetch commons image for thumbnails]
-    end
+flowchart LR
+    A[GPX File] --> B[FastAPI Backend]
+    B --> C[Leaflet Map]
+    C --> D[Click Marker]
+    D --> E[Popup with Details]
 
-    subgraph Backend["Backend (FastAPI)"]
-        B -->|parse GPX + buffer| J[Geo Service]
-        J --> K[Filter Spots by Buffer]
-        K --> L[Return GeoJSON]
-
-        H --> M[Check wikidata.db]
-        M -->|miss| N[Wikidata REST API v1]
-        N --> O[get labels endpoint]
-        N --> P[get P18 statements endpoint]
-        N --> Q[get sitelinks endpoint]
-        M -->|hit| R[Return Cached]
-        N --> S[wikidata.db 7-day TTL]
-        S --> R
-
-        I --> T[Commons API Proxy]
-        T --> U[wikidata.db commons_cache 7-day TTL]
-    end
-
-    subgraph Wikidata["Wikidata"]
-        O & P & Q --> V[Wikidata REST API]
-        V --> W[(SPARQL WDQS/QLever)]
-        W --> X[sites.db 24h TTL]
-    end
-
-    X -.->|load_bathing_spots_all ENHANCED_QUERY| K
+    B --> F[Wikidata REST API]
+    B --> G[Wikidata SPARQL]
+    F --> H[Labels, Images, Links]
+    G --> I[Bathing Spots]
 ```
+
+### Data Flow
+
+1. User uploads GPX file
+2. Backend parses route and finds bathing spots within buffer
+3. Frontend displays spots on Leaflet map
+4. On marker click, backend fetches spot details from Wikidata
+5. Details cached in SQLite for 7 days
 
 ### Backend Details
 
