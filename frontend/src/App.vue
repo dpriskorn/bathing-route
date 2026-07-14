@@ -31,7 +31,7 @@ const selectedLayerId = ref<string>('')
 const cacheInfo = ref<CacheInfo | null>(null)
 const clearingCache = ref(false)
 
-const selectedLayer = computed(() => layers.value.find(l => l.id === selectedLayerId.value))
+const selectedLayer = computed(() => layers.value.find(l => l.layer.id === selectedLayerId.value)?.layer)
 
 const visibleFilteredSpots = computed(() => {
   if (!data.value || !selectedLayer.value) return data.value?.bathing_spots.features || []
@@ -51,9 +51,9 @@ async function refreshCacheInfo() {
 async function refreshLayers() {
   try {
     layers.value = await getLayers()
-    const defaultLayer = layers.value.find(l => l.default_visible) || layers.value[0]
-    if (defaultLayer) {
-      selectedLayerId.value = defaultLayer.id
+    const defaultItem = layers.value.find(l => l.layer.default_visible) || layers.value[0]
+    if (defaultItem) {
+      selectedLayerId.value = defaultItem.layer.id
     }
   } catch {
     layers.value = []
@@ -160,19 +160,19 @@ onMounted(async () => {
         </div>
         <div class="layer-control">
           <label>{{ t('selectLayer') }}</label>
-          <div v-for="layer in layers" :key="layer.id" class="layer-option">
+          <div v-for="item in layers" :key="item.layer.id" class="layer-option">
             <input
               type="radio"
-              :id="layer.id"
-              :value="layer.id"
+              :id="item.layer.id"
+              :value="item.layer.id"
               v-model="selectedLayerId"
               @change="handleLayerChange"
             />
-            <span class="layer-color" :style="{ background: layer.color }"></span>
-            <label :for="layer.id" class="layer-name">
-              {{ locale === 'sv' ? layer.name_sv : layer.name }}
+            <span class="layer-color" :style="{ background: item.layer.color }"></span>
+            <label :for="item.layer.id" class="layer-name">
+              {{ locale === 'sv' ? item.layer.name_sv : item.layer.name }}
             </label>
-            <span class="layer-count">({{ layer.count ?? '-' }})</span>
+            <span class="layer-count">({{ item.count ?? '-' }})</span>
           </div>
         </div>
         <div class="language-control">

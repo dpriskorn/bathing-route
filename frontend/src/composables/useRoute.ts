@@ -72,7 +72,8 @@ export interface Layer {
   default_visible: boolean
 }
 
-export interface LayerWithCount extends Layer {
+export interface LayerWithCount {
+  layer: Layer
   count: number | null
 }
 
