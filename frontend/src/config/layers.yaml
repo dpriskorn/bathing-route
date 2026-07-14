@@ -38,8 +38,8 @@ layers:
     icon: "circle"
 
   - id: all_no_p18_commons
-    name: "Utan P18 men med Commons-kategori"
-    name_sv: "Utan P18 men med Commons-kategori"
+    name: "Utan Bild men med Commons-kategori"
+    name_sv: "Utan Bild men med Commons-kategori"
     filter:
       missing_property:
         - P18
