@@ -4,6 +4,7 @@
   "language": "Språk",
   "selectLayer": "Lager",
   "bathingSpotsFound": "{count} badplatser hittades",
+  "downloadGpx": "Ladda ner GPX",
   "cache": "Cache",
   "clearCache": "Rensa cache",
   "fresh": "färsk",

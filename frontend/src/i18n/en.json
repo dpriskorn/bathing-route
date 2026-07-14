@@ -4,6 +4,7 @@
   "language": "Language",
   "selectLayer": "Layer",
   "bathingSpotsFound": "{count} bathing spots found",
+  "downloadGpx": "Download GPX",
   "cache": "Cache",
   "clearCache": "Clear cache",
   "fresh": "fresh",

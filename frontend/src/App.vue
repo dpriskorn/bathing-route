@@ -15,6 +15,7 @@ import {
   type SpotDetails,
   useRoute,
 } from './composables/useRoute'
+import { downloadGpx } from './utils/gpxExport'
 
 const { t } = useI18n()
 const { analyze, getCacheInfo, clearCache } = useRoute()
@@ -118,6 +119,11 @@ async function handleBackendChange(value: Backend) {
 async function handleLayerChange() {
 }
 
+function handleDownloadGpx() {
+  if (!data.value || !selectedLayer.value) return
+  downloadGpx(visibleFilteredSpots.value, spotDetails.value, selectedLayer.value.id, selectedLayer.value.name)
+}
+
 async function handleLocaleChange() {
   localStorage.setItem('locale', locale.value)
 }
@@ -179,6 +185,9 @@ onMounted(async () => {
             </label>
             <span class="layer-count">({{ item.count ?? '-' }})</span>
           </div>
+          <button @click="handleDownloadGpx" class="btn btn-sm btn-outline-primary mt-2">
+            {{ t('downloadGpx') }}
+          </button>
         </div>
         <div class="language-control">
           <label>
