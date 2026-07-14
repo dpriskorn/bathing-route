@@ -63,6 +63,9 @@ function buildPopupHtml(spot: BathingSpotFeature): string {
   if (!details) {
     return `<div class="p-2"><a href="https://www.wikidata.org/wiki/${spot.properties.qid}" target="_blank">${spot.properties.qid}</a></div>`
   }
+  if (details.wikipedia_urls.length === 0) {
+    console.info(`Wikipedia link missing for ${spot.properties.qid}`)
+  }
   let html = '<div class="p-2" style="min-width: 220px; max-width: 320px;">'
   if (details.image_url) {
     html += `<a href="${details.image_url}" target="_blank" rel="noopener"><img src="${details.image_url}?width=400" class="img-fluid mb-2" style="max-height: 200px;" /></a>`
