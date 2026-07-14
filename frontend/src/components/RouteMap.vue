@@ -3,7 +3,6 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   LMap,
-  LMarker,
   LPolygon,
   LPolyline,
   LTileLayer,
@@ -48,16 +47,6 @@ const bathingSpots = computed<BathingSpotFeature[]>(() => {
   return props.data.bathing_spots.features
 })
 
-const defaultIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-})
-
 function buildPopupHtml(spot: BathingSpotFeature): string {
   const details = props.spotDetails[spot.properties.qid]
   if (!details) {
@@ -81,34 +70,61 @@ function buildPopupHtml(spot: BathingSpotFeature): string {
   return html
 }
 
-const markersLayer = ref<L.LayerGroup | null>(null)
+const poiLayer = ref<L.LayerGroup | null>(null)
 
-function updateMarkers() {
-  if (!map.value?.leafletObject || !props.data) return
-
-  if (!markersLayer.value) {
-    markersLayer.value = L.layerGroup().addTo(map.value.leafletObject)
-  } else {
-    markersLayer.value.clearLayers()
-  }
-
-  for (const spot of bathingSpots.value) {
-    const marker = L.marker(
-      [spot.geometry.coordinates[1], spot.geometry.coordinates[0]],
-      { icon: defaultIcon }
-    )
-    marker.bindPopup(buildPopupHtml(spot))
-    markersLayer.value.addLayer(marker)
-  }
+const poiStyle: L.CircleMarkerOptions = {
+  radius: 6,
+  color: '#42b983',
+  fillColor: '#42b983',
+  fillOpacity: 0.8,
+  weight: 2,
 }
 
-watch(() => props.data, updateMarkers)
+function updatePoiLayer() {
+  if (!map.value?.leafletObject) return
+  const leaflet = map.value.leafletObject
+
+  if (poiLayer.value) {
+    leaflet.removeLayer(poiLayer.value)
+  }
+
+  poiLayer.value = L.layerGroup()
+
+  for (const spot of bathingSpots.value) {
+    const marker = L.circleMarker(
+      [spot.geometry.coordinates[1], spot.geometry.coordinates[0]],
+      poiStyle
+    )
+    marker.bindPopup(buildPopupHtml(spot))
+    poiLayer.value.addLayer(marker)
+  }
+
+  poiLayer.value.addTo(leaflet)
+}
+
+watch(() => props.data, () => {
+  updatePoiLayer()
+})
+
 watch(() => props.spotDetails, () => {
-  updateMarkers()
+  if (!poiLayer.value) return
+  for (const layer of poiLayer.value.getLayers()) {
+    const marker = layer as L.CircleMarker
+    const latlng = marker.getLatLng()
+    const qid = bathingSpots.value.find(
+      s => s.geometry.coordinates[1] === latlng.lat && s.geometry.coordinates[0] === latlng.lng
+    )?.properties.qid
+    if (qid) {
+      const spot = bathingSpots.value.find(s => s.properties.qid === qid)!
+      marker.setPopupContent(buildPopupHtml(spot))
+    }
+  }
 }, { deep: true })
 
 onMounted(() => {
-  updateMarkers()
+  if (props.data) {
+    updatePoiLayer()
+  }
 })
 </script>
 
