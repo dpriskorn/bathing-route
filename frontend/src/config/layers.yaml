@@ -1,0 +1,35 @@
+layers:
+  - id: eubad
+    name: "EU-bad"
+    name_sv: "EU-bad"
+    filter:
+      has_property: P9616
+    color: "#42b983"
+    icon: "circle"
+    default_visible: true
+
+  - id: eubad_no_image
+    name: "EU-bad utan bild"
+    name_sv: "EU-bad utan bild"
+    filter:
+      has_property: P9616
+      missing_property: P18
+    color: "#e67e22"
+    icon: "circle"
+
+  - id: all_no_image
+    name: "Alla badplatser utan bild"
+    name_sv: "Alla badplatser utan bild"
+    filter:
+      missing_property: P18
+    color: "#3498db"
+    icon: "circle"
+
+  - id: all_no_p18_commons
+    name: "Utan P18 men med Commons-kategori"
+    name_sv: "Utan P18 men med Commons-kategori"
+    filter:
+      missing_property: P18
+      has_property: P373
+    color: "#9b59b6"
+    icon: "circle"

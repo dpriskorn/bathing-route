@@ -34,6 +34,16 @@ SELECT DISTINCT ?item ?coord ?image WHERE {
 }
 """
 
+ENHANCED_QUERY = """
+SELECT DISTINCT ?item ?coord ?image ?commonsCategory ?euBathId WHERE {
+  ?item wdt:P31/wdt:P279* wd:Q567998 .
+  ?item wdt:P625 ?coord .
+  OPTIONAL { ?item wdt:P18 ?image }
+  OPTIONAL { ?item wdt:P373 ?commonsCategory }
+  OPTIONAL { ?item wdt:P9616 ?euBathId }
+}
+"""
+
 
 class WikidataService:
     _instance: "WikidataService | None" = None
@@ -118,19 +128,19 @@ class WikidataService:
             self._bathing_spots, fetched_at = cached
             self._loaded = True
             self._loaded_backend = backend
-            log.info(f"Loaded {len(self._bathing_spots)} WD-all bathing spots from cache (fetched {fetched_at})")
+            log.info(f"Loaded {len(self._bathing_spots)} bathing spots from cache (fetched {fetched_at})")
             return
 
-        full_query = SPARQL_PREFIXES + WD_ALL_QUERY
+        full_query = SPARQL_PREFIXES + ENHANCED_QUERY
 
         if backend == "qlever":
             endpoint = "https://qlever.cs.uni-freiburg.de/api/wikidata"
             params = {"query": full_query, "action": "json_export"}
-            log.info("Fetching WD-all bathing spots from QLever...")
+            log.info("Fetching bathing spots from QLever...")
         else:
             endpoint = "https://query.wikidata.org/sparql"
             params = {"query": full_query, "format": "json"}
-            log.info("Fetching WD-all bathing spots from WDQS...")
+            log.info("Fetching bathing spots from WDQS...")
 
         response = requests.get(endpoint, params=params, headers={"User-Agent": USER_AGENT}, timeout=120.0)
         response.raise_for_status()
@@ -151,19 +161,23 @@ class WikidataService:
                 continue
 
             image_value = r.get("image", {}).get("value")
+            commons_category = r.get("commonsCategory", {}).get("value")
+            eu_bath_id = r.get("euBathId", {}).get("value")
 
             self._bathing_spots.append(BathingSpot(
                 qid=qid,
                 lat=coord["lat"],
                 lon=coord["lon"],
                 image_url=image_value,
+                commons_category=commons_category,
+                has_eu_bath=eu_bath_id is not None,
             ))
 
         await set_cached_spots(backend, self._bathing_spots)
 
         self._loaded = True
         self._loaded_backend = backend
-        log.info(f"Loaded {len(self._bathing_spots)} WD-all bathing spots from {backend}")
+        log.info(f"Loaded {len(self._bathing_spots)} bathing spots from {backend}")
 
     def get_bathing_spots(self) -> list[BathingSpot]:
         if not self._loaded:

@@ -12,16 +12,20 @@ export interface SpotDetails {
   wikipedia_urls: WikipediaUrl[]
 }
 
+export interface BathingSpotProperties {
+  qid: string
+  image_url: string | null
+  commons_category: string | null
+  has_eu_bath: boolean
+}
+
 export interface BathingSpotFeature {
   type: 'Feature'
   geometry: {
     type: 'Point'
     coordinates: [number, number]
   }
-  properties: {
-    qid: string
-    image_url: string | null
-  }
+  properties: BathingSpotProperties
 }
 
 export interface RouteFeature {
@@ -52,6 +56,25 @@ export interface AnalyzeResponse {
 }
 
 export type Backend = 'wdqs' | 'qlever' | 'wdqs-all'
+
+export interface LayerFilter {
+  has_property?: string[]
+  missing_property?: string[]
+}
+
+export interface Layer {
+  id: string
+  name: string
+  name_sv: string
+  filter: LayerFilter
+  color: string
+  icon: string
+  default_visible: boolean
+}
+
+export interface LayerWithCount extends Layer {
+  count: number | null
+}
 
 export interface CacheInfo {
   backend: string
@@ -149,6 +172,33 @@ export function clearSpotDetailsCache(): void {
     }
   }
   keys.forEach(k => localStorage.removeItem(k))
+}
+
+export async function getLayers(): Promise<LayerWithCount[]> {
+  const response = await fetch('/api/layers')
+  if (!response.ok) throw new Error('Failed to fetch layers')
+  const data = await response.json()
+  return data as LayerWithCount[]
+}
+
+export function filterSpotsByLayer(
+  spots: BathingSpotFeature[],
+  layer: Layer
+): BathingSpotFeature[] {
+  const filter = layer.filter
+  return spots.filter(spot => {
+    const props = spot.properties
+    for (const prop of filter.has_property || []) {
+      if (prop === 'P9616' && !props.has_eu_bath) return false
+      if (prop === 'P18' && !props.image_url) return false
+      if (prop === 'P373' && !props.commons_category) return false
+    }
+    for (const prop of filter.missing_property || []) {
+      if (prop === 'P18' && props.image_url) return false
+      if (prop === 'P373' && props.commons_category) return false
+    }
+    return true
+  })
 }
 
 export function useRoute() {

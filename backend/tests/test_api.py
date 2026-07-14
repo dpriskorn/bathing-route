@@ -86,14 +86,17 @@ def test_analyze_valid_gpx(client):
     files = {"file": ("route.gpx", BytesIO(gpx_content), "application/gpx+xml")}
 
     mock_spots = [
-        type("BathingSpot", (), {"qid": "Q1", "lat": 58.05, "lon": 14.05, "image_url": None})(),
+        type("BathingSpot", (), {"qid": "Q1", "lat": 58.05, "lon": 14.05, "image_url": None, "commons_category": None, "has_eu_bath": True})(),
     ]
+
+    async def mock_load_all(backend):
+        pass
 
     with patch("bathing_route.api.wikidata_service.WikidataService") as MockWDS:
         mock_instance = MockWDS.return_value
         mock_instance.is_loaded.return_value = True
         mock_instance.get_loaded_backend.return_value = "wdqs"
-        mock_instance.load_bathing_spots.return_value = None
+        mock_instance.load_bathing_spots_all = mock_load_all
         mock_instance.get_bathing_spots.return_value = mock_spots
 
         response = client.post("/api/analyze", data={"buffer_km": 10}, files=files)
@@ -140,7 +143,7 @@ def test_analyze_wdqs_all_backend(client):
     files = {"file": ("route.gpx", BytesIO(gpx_content), "application/gpx+xml")}
 
     mock_spots = [
-        type("BathingSpot", (), {"qid": "Q1", "lat": 58.05, "lon": 14.05, "image_url": "Beach.jpg"})(),
+        type("BathingSpot", (), {"qid": "Q1", "lat": 58.05, "lon": 14.05, "image_url": "Beach.jpg", "commons_category": None, "has_eu_bath": False})(),
     ]
 
     async def mock_load_all(backend):
@@ -154,3 +157,25 @@ def test_analyze_wdqs_all_backend(client):
 
         response = client.post("/api/analyze", params={"backend": "wdqs-all"}, files=files)
         assert response.status_code == 200
+
+
+def test_get_layers(client):
+    with patch("bathing_route.api.wikidata_service.WikidataService") as MockWDS:
+        mock_instance = MockWDS.return_value
+        mock_instance.is_loaded.return_value = True
+        mock_instance.get_bathing_spots.return_value = [
+            type("BathingSpot", (), {"qid": "Q1", "lat": 58.0, "lon": 14.0, "image_url": "img.jpg", "commons_category": "cat", "has_eu_bath": True})(),
+            type("BathingSpot", (), {"qid": "Q2", "lat": 59.0, "lon": 15.0, "image_url": None, "commons_category": None, "has_eu_bath": True})(),
+            type("BathingSpot", (), {"qid": "Q3", "lat": 60.0, "lon": 16.0, "image_url": None, "commons_category": "cat3", "has_eu_bath": False})(),
+        ]
+
+        response = client.get("/api/layers")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) == 4
+        layer_ids = [l["layer"]["id"] for l in data]
+        assert "eubad" in layer_ids
+        assert "eubad_no_image" in layer_ids
+        assert "all_no_image" in layer_ids
+        assert "all_no_p18_commons" in layer_ids

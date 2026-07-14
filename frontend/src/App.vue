@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GpxUploader from './components/GpxUploader.vue'
 import BufferControl from './components/BufferControl.vue'
@@ -7,8 +7,11 @@ import RouteMap from './components/RouteMap.vue'
 import {
   batchFetchSpotDetails,
   clearSpotDetailsCache,
+  filterSpotsByLayer,
+  getLayers,
   type Backend,
   type CacheInfo,
+  type LayerWithCount,
   type SpotDetails,
   useRoute,
 } from './composables/useRoute'
@@ -23,9 +26,19 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const bufferKm = ref(10)
 const backend = ref<Backend>('wdqs')
-const dataSource = ref<'eu' | 'all'>('eu')
+const layers = ref<LayerWithCount[]>([])
+const selectedLayerId = ref<string>('')
 const cacheInfo = ref<CacheInfo | null>(null)
 const clearingCache = ref(false)
+
+const selectedLayer = computed(() => layers.value.find(l => l.id === selectedLayerId.value))
+
+const visibleFilteredSpots = computed(() => {
+  if (!data.value || !selectedLayer.value) return data.value?.bathing_spots.features || []
+  return filterSpotsByLayer(data.value.bathing_spots.features, selectedLayer.value)
+})
+
+const visibleQids = computed(() => visibleFilteredSpots.value.map(s => s.properties.qid))
 
 async function refreshCacheInfo() {
   try {
@@ -35,9 +48,21 @@ async function refreshCacheInfo() {
   }
 }
 
+async function refreshLayers() {
+  try {
+    layers.value = await getLayers()
+    const defaultLayer = layers.value.find(l => l.default_visible) || layers.value[0]
+    if (defaultLayer) {
+      selectedLayerId.value = defaultLayer.id
+    }
+  } catch {
+    layers.value = []
+  }
+}
+
 async function prefetchDetails() {
   if (!data.value) return
-  const qids = data.value.bathing_spots.features.map(f => f.properties.qid)
+  const qids = visibleQids.value
   await batchFetchSpotDetails(qids, locale.value, (progress) => {
     spotDetails.value = progress
   })
@@ -47,9 +72,9 @@ async function handleFileSelected(file: File) {
   error.value = null
   loading.value = true
   try {
-    const effectiveBackend: Backend = dataSource.value === 'all' ? 'wdqs-all' : backend.value
-    data.value = await analyze(file, bufferKm.value, effectiveBackend)
+    data.value = await analyze(file, bufferKm.value, backend.value)
     await refreshCacheInfo()
+    await refreshLayers()
     await prefetchDetails()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Analysis failed'
@@ -81,16 +106,8 @@ async function handleBackendChange(value: Backend) {
   }
 }
 
-async function handleDataSourceChange() {
-  data.value = null
-  spotDetails.value = {}
-  if (data.value) {
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    const file = input?.files?.[0]
-    if (file) {
-      await handleFileSelected(file)
-    }
-  }
+async function handleLayerChange() {
+  await prefetchDetails()
 }
 
 async function handleLocaleChange() {
@@ -109,12 +126,17 @@ async function handleClearCache() {
     data.value = null
     spotDetails.value = {}
     await refreshCacheInfo()
+    await refreshLayers()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to clear cache'
   } finally {
     clearingCache.value = false
   }
 }
+
+onMounted(async () => {
+  await refreshLayers()
+})
 </script>
 
 <template>
@@ -130,20 +152,28 @@ async function handleClearCache() {
         <div class="backend-control">
           <label>
             Wikidata backend:
-            <select v-model="backend" @change="handleBackendChange(backend)" class="form-select" :disabled="dataSource === 'all'">
+            <select v-model="backend" @change="handleBackendChange(backend)" class="form-select">
               <option value="wdqs">WDQS (default)</option>
               <option value="qlever">QLever</option>
             </select>
           </label>
         </div>
-        <div class="datasource-control">
-          <label>
-            {{ t('dataSource') }}:
-            <select v-model="dataSource" @change="handleDataSourceChange" class="form-select">
-              <option value="eu">{{ t('eubad') }}</option>
-              <option value="all">{{ t('allWdBathingSpots') }}</option>
-            </select>
-          </label>
+        <div class="layer-control">
+          <label>{{ t('selectLayer') }}</label>
+          <div v-for="layer in layers" :key="layer.id" class="layer-option">
+            <input
+              type="radio"
+              :id="layer.id"
+              :value="layer.id"
+              v-model="selectedLayerId"
+              @change="handleLayerChange"
+            />
+            <span class="layer-color" :style="{ background: layer.color }"></span>
+            <label :for="layer.id" class="layer-name">
+              {{ locale === 'sv' ? layer.name_sv : layer.name }}
+            </label>
+            <span class="layer-count">({{ layer.count ?? '-' }})</span>
+          </div>
         </div>
         <div class="language-control">
           <label>
@@ -155,7 +185,7 @@ async function handleClearCache() {
           </label>
         </div>
         <div v-if="data" class="stats">
-          <p>{{ t('bathingSpotsFound', { count: data.bathing_spots.features.length }) }}</p>
+          <p>{{ t('bathingSpotsFound', { count: visibleFilteredSpots.length }) }}</p>
         </div>
         <div v-if="error" class="error">{{ error }}</div>
         <div class="cache-control">
@@ -178,7 +208,13 @@ async function handleClearCache() {
       </aside>
 
       <section class="map-section">
-        <RouteMap :data="data" :spot-details="spotDetails" :locale="locale" :loading="loading" />
+        <RouteMap
+          :data="data"
+          :spot-details="spotDetails"
+          :locale="locale"
+          :loading="loading"
+          :visible-qids="visibleQids"
+        />
       </section>
     </main>
   </div>
@@ -219,8 +255,7 @@ main {
 }
 
 .backend-control,
-.language-control,
-.datasource-control {
+.language-control {
   padding: 0.75rem;
   background: #fff;
   border-radius: 8px;
@@ -228,8 +263,7 @@ main {
 }
 
 .backend-control label,
-.language-control label,
-.datasource-control label {
+.language-control label {
   font-size: 0.9rem;
   color: #333;
   display: flex;
@@ -238,8 +272,7 @@ main {
 }
 
 .backend-control select,
-.language-control select,
-.datasource-control select {
+.language-control select {
   padding: 0.35rem;
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -247,9 +280,49 @@ main {
   cursor: pointer;
 }
 
-.backend-control select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.layer-control {
+  padding: 0.75rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.layer-control > label {
+  font-size: 0.9rem;
+  color: #333;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.layer-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.layer-option input[type="radio"] {
+  cursor: pointer;
+}
+
+.layer-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.layer-name {
+  font-size: 0.9rem;
+  color: #333;
+  cursor: pointer;
+  flex: 1;
+}
+
+.layer-count {
+  font-size: 0.8rem;
+  color: #666;
 }
 
 .stats {

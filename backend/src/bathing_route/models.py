@@ -13,6 +13,8 @@ class BathingSpot(BaseModel):
     lat: float
     lon: float
     image_url: str | None = None
+    commons_category: str | None = None
+    has_eu_bath: bool = False
 
 
 class GPXRoute(BaseModel):

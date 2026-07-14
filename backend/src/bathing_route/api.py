@@ -1,6 +1,8 @@
 import logging
+from pathlib import Path
 from typing import Any, cast
 
+import yaml
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from bathing_route.cache import clear_cache, get_cache_info
@@ -18,6 +20,13 @@ from bathing_route.services import geo_service, gpx_service, wikidata_service
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["api"])
+
+LAYERS_CONFIG = Path(__file__).parent.parent.parent / "config" / "layers.yaml"
+
+
+def load_layers() -> list[dict[str, Any]]:
+    with open(LAYERS_CONFIG) as f:
+        return yaml.safe_load(f)["layers"]
 
 
 @router.get("/health")
@@ -52,6 +61,45 @@ async def bathing_spots_count() -> dict[str, int]:
     return {"count": len(service.get_bathing_spots())}
 
 
+@router.get("/layers")
+async def get_layers() -> list[dict[str, Any]]:
+    layers = load_layers()
+    service = wikidata_service.WikidataService()
+    if not service.is_loaded():
+        return [{"layer": layer, "count": None} for layer in layers]
+
+    spots = service.get_bathing_spots()
+    result = []
+    for layer in layers:
+        count = _count_spots_for_layer(spots, layer.get("filter", {}))
+        result.append({"layer": layer, "count": count})
+    return result
+
+
+def _count_spots_for_layer(spots: list[BathingSpot], filter_def: dict[str, Any]) -> int:
+    count = 0
+    for spot in spots:
+        if _spot_matches_filter(spot, filter_def):
+            count += 1
+    return count
+
+
+def _spot_matches_filter(spot: BathingSpot, filter_def: dict[str, Any]) -> bool:
+    for prop in filter_def.get("has_property", []):
+        if prop == "P9616" and not spot.has_eu_bath:
+            return False
+        if prop == "P18" and not spot.image_url:
+            return False
+        if prop == "P373" and not spot.commons_category:
+            return False
+    for prop in filter_def.get("missing_property", []):
+        if prop == "P18" and spot.image_url:
+            return False
+        if prop == "P373" and spot.commons_category:
+            return False
+    return True
+
+
 @router.post("/analyze")
 async def analyze(
     file: UploadFile = File(...),
@@ -84,10 +132,7 @@ async def analyze(
     wikidata_svc = wikidata_service.WikidataService()
     if not wikidata_svc.is_loaded() or wikidata_svc.get_loaded_backend() != backend:
         log.info(f"Bathing spots not yet loaded for backend '{backend}', fetching...")
-        if backend == "wdqs-all":
-            await wikidata_svc.load_bathing_spots_all(backend)
-        else:
-            await wikidata_svc.load_bathing_spots(backend)
+        await wikidata_svc.load_bathing_spots_all(backend)
 
     all_spots = wikidata_svc.get_bathing_spots()
 
@@ -101,6 +146,8 @@ async def analyze(
             properties={
                 "qid": spot.qid,
                 "image_url": spot.image_url,
+                "commons_category": spot.commons_category,
+                "has_eu_bath": spot.has_eu_bath,
             },
         ))
 

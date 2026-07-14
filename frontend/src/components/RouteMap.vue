@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -16,6 +16,7 @@ const props = defineProps<{
   spotDetails: Record<string, SpotDetails>
   locale: string
   loading: boolean
+  visibleQids: string[]
 }>()
 
 const { t } = useI18n()
@@ -120,9 +121,11 @@ function updatePoiLayer() {
   }
   if (!map || bathingSpots.value.length === 0) return
 
+  const visibleSpots = bathingSpots.value.filter(spot => props.visibleQids.includes(spot.properties.qid))
+
   const geojson: GeoJSON.FeatureCollection = {
     type: 'FeatureCollection',
-    features: bathingSpots.value.map(spot => ({
+    features: visibleSpots.map(spot => ({
       type: 'Feature',
       geometry: {
         type: 'Point',
@@ -144,17 +147,13 @@ function updatePoiLayer() {
 function fitBounds() {
   if (!map || !props.data) return
 
-  const spots = bathingSpots.value
   const route = routeCoords.value
   const buffer = bufferCoords.value
 
-  if (spots.length === 0 && route.length === 0) return
+  if (route.length === 0) return
 
   const allCoords: [number, number][] = []
 
-  for (const spot of spots) {
-    allCoords.push([spot.geometry.coordinates[1], spot.geometry.coordinates[0]])
-  }
   allCoords.push(...route)
   for (const ring of buffer) {
     allCoords.push(...ring)
@@ -176,6 +175,10 @@ function updateAllLayers() {
 watch(() => props.data, () => {
   updateAllLayers()
 }, { deep: true })
+
+watch(() => props.visibleQids, () => {
+  nextTick(() => updatePoiLayer())
+})
 
 watch(() => props.spotDetails, async () => {
   const filenames = Object.values(props.spotDetails)
