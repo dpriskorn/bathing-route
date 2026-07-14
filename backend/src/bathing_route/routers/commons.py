@@ -2,7 +2,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query
 from urllib.parse import unquote
 
-from bathing_route.label_cache import get_cached_commons_image, set_cached_commons_image
+from bathing_route.wikidata_cache import get_cached_commons_image, set_cached_commons_image
 
 
 router = APIRouter(prefix="/api", tags=["commons"])

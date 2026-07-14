@@ -5,7 +5,7 @@ from typing import Any
 import httpx
 from fastapi import APIRouter
 
-from bathing_route.label_cache import (
+from bathing_route.wikidata_cache import (
     get_cached_label,
     get_cached_wikidata_details,
     set_cached_label,

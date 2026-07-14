@@ -6,7 +6,7 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).parent.parent.parent / "labels.db"
+DB_PATH = Path(__file__).parent.parent.parent / "wikidata.db"
 CACHE_TTL_DAYS = 7
 COMMONS_CACHE_TTL_DAYS = 7
 

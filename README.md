@@ -50,7 +50,7 @@ just fe-test   # Frontend only (vitest)
 - **Geo buffering**: shapely + pyproj
 - **SPARQL backends**: Wikidata Query Service (default) or QLever
 - **Bathing spots cache**: SQLite (aiosqlite), 24h TTL, stored at `backend/sites.db`
-- **Labels cache**: SQLite (aiosqlite), 7-day TTL, stored at `backend/labels.db`
+- **Labels/details cache**: SQLite (aiosqlite), 7-day TTL, stored at `backend/wikidata.db`
 - **Label source**: Wikidata REST API (labels never come from SPARQL)
 
 ### Frontend Details

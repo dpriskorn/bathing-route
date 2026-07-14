@@ -7,10 +7,10 @@ import asyncio
 
 @pytest.mark.asyncio
 async def test_init_db_creates_commons_cache(tmp_path):
-    test_db = tmp_path / "labels.db"
+    test_db = tmp_path / "wikidata.db"
 
-    with patch('bathing_route.label_cache.DB_PATH', test_db):
-        from bathing_route.label_cache import init_db
+    with patch('bathing_route.wikidata_cache.DB_PATH', test_db):
+        from bathing_route.wikidata_cache import init_db
         await init_db()
 
         async with aiosqlite.connect(test_db) as db:
@@ -32,9 +32,9 @@ async def test_init_db_creates_commons_cache(tmp_path):
 
 @pytest.mark.asyncio
 async def test_clear_all_cache(tmp_path):
-    test_db = tmp_path / "labels.db"
+    test_db = tmp_path / "wikidata.db"
 
-    with patch('bathing_route.label_cache.DB_PATH', test_db):
+    with patch('bathing_route.wikidata_cache.DB_PATH', test_db):
         async with aiosqlite.connect(test_db) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS label_cache (
@@ -59,7 +59,7 @@ async def test_clear_all_cache(tmp_path):
             )
             await db.commit()
 
-        from bathing_route.label_cache import clear_all_cache
+        from bathing_route.wikidata_cache import clear_all_cache
         deleted = await clear_all_cache()
         assert deleted == 1
 
@@ -74,9 +74,9 @@ async def test_clear_all_cache(tmp_path):
 
 @pytest.mark.asyncio
 async def test_get_set_cached_commons_image(tmp_path):
-    test_db = tmp_path / "labels.db"
+    test_db = tmp_path / "wikidata.db"
 
-    with patch('bathing_route.label_cache.DB_PATH', test_db):
+    with patch('bathing_route.wikidata_cache.DB_PATH', test_db):
         async with aiosqlite.connect(test_db) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS commons_cache (
@@ -88,7 +88,7 @@ async def test_get_set_cached_commons_image(tmp_path):
             """)
             await db.commit()
 
-        from bathing_route.label_cache import get_cached_commons_image, set_cached_commons_image
+        from bathing_route.wikidata_cache import get_cached_commons_image, set_cached_commons_image
 
         result = await get_cached_commons_image("Test.jpg")
         assert result is None
@@ -102,9 +102,9 @@ async def test_get_set_cached_commons_image(tmp_path):
 
 @pytest.mark.asyncio
 async def test_get_set_cached_label(tmp_path):
-    test_db = tmp_path / "labels.db"
+    test_db = tmp_path / "wikidata.db"
 
-    with patch('bathing_route.label_cache.DB_PATH', test_db):
+    with patch('bathing_route.wikidata_cache.DB_PATH', test_db):
         async with aiosqlite.connect(test_db) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS label_cache (
@@ -117,7 +117,7 @@ async def test_get_set_cached_label(tmp_path):
             """)
             await db.commit()
 
-        from bathing_route.label_cache import get_cached_label, set_cached_label
+        from bathing_route.wikidata_cache import get_cached_label, set_cached_label
 
         result = await get_cached_label("Q1", "en")
         assert result is None
@@ -129,9 +129,9 @@ async def test_get_set_cached_label(tmp_path):
 
 @pytest.mark.asyncio
 async def test_cleanup_expired_cache(tmp_path):
-    test_db = tmp_path / "labels.db"
+    test_db = tmp_path / "wikidata.db"
 
-    with patch('bathing_route.label_cache.DB_PATH', test_db):
+    with patch('bathing_route.wikidata_cache.DB_PATH', test_db):
         async with aiosqlite.connect(test_db) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS label_cache (
@@ -152,12 +152,12 @@ async def test_cleanup_expired_cache(tmp_path):
             )
             await db.commit()
 
-        from bathing_route.label_cache import cleanup_expired_cache
+        from bathing_route.wikidata_cache import cleanup_expired_cache
 
         deleted = await cleanup_expired_cache()
         assert deleted == 1
 
-        from bathing_route.label_cache import get_cached_label
+        from bathing_route.wikidata_cache import get_cached_label
         result = await get_cached_label("Q1", "en")
         assert result == "fresh"
         result = await get_cached_label("Q2", "en")
@@ -166,9 +166,9 @@ async def test_cleanup_expired_cache(tmp_path):
 
 @pytest.mark.asyncio
 async def test_get_set_cached_wikidata_details(tmp_path):
-    test_db = tmp_path / "labels.db"
+    test_db = tmp_path / "wikidata.db"
 
-    with patch('bathing_route.label_cache.DB_PATH', test_db):
+    with patch('bathing_route.wikidata_cache.DB_PATH', test_db):
         async with aiosqlite.connect(test_db) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS wikidata_details_cache (
@@ -180,7 +180,7 @@ async def test_get_set_cached_wikidata_details(tmp_path):
             """)
             await db.commit()
 
-        from bathing_route.label_cache import get_cached_wikidata_details, set_cached_wikidata_details
+        from bathing_route.wikidata_cache import get_cached_wikidata_details, set_cached_wikidata_details
 
         result = await get_cached_wikidata_details("Q1")
         assert result is None
@@ -196,9 +196,9 @@ async def test_get_set_cached_wikidata_details(tmp_path):
 
 @pytest.mark.asyncio
 async def test_get_cached_wikidata_details_expired(tmp_path):
-    test_db = tmp_path / "labels.db"
+    test_db = tmp_path / "wikidata.db"
 
-    with patch('bathing_route.label_cache.DB_PATH', test_db):
+    with patch('bathing_route.wikidata_cache.DB_PATH', test_db):
         async with aiosqlite.connect(test_db) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS wikidata_details_cache (
@@ -214,7 +214,7 @@ async def test_get_cached_wikidata_details_expired(tmp_path):
             )
             await db.commit()
 
-        from bathing_route.label_cache import get_cached_wikidata_details
+        from bathing_route.wikidata_cache import get_cached_wikidata_details
 
         result = await get_cached_wikidata_details("Q1")
         assert result is None

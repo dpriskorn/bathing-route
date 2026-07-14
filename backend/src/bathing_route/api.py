@@ -6,7 +6,7 @@ import yaml
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from bathing_route.cache import clear_cache, get_cache_info
-from bathing_route.label_cache import clear_all_cache as clear_label_cache
+from bathing_route.wikidata_cache import clear_all_cache as clear_label_cache
 from bathing_route.models import (
     AnalyzeResponse,
     BathingSpot,

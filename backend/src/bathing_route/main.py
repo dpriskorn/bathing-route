@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator
 from fastapi import FastAPI
 
 from bathing_route.cache import init_cache
-from bathing_route.label_cache import cleanup_expired_cache, init_db
+from bathing_route.wikidata_cache import cleanup_expired_cache, init_db
 
 
 @asynccontextmanager
