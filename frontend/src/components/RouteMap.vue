@@ -236,20 +236,27 @@ watch(() => props.spotDetails, async () => {
 
 watch(commonsUrlCache, () => {
   console.log('[RouteMap] commonsUrlCache updated, keys:', Object.keys(commonsUrlCache.value))
-  if (poiLayer) {
-    poiLayer.eachLayer((layer) => {
-      const marker = layer as L.CircleMarker
-      if (marker.getPopup()) {
-        const content = marker.getPopup()?.getContent()
-        if (typeof content === 'string' && content.includes('</div>')) {
-          const qidMatch = content.match(/wikidata\.org\/wiki\/([A-Z0-9]+)/)
-          if (qidMatch) {
-            marker.setPopupContent(buildPopupHtml(qidMatch[1]))
-          }
-        }
-      }
-    })
+  if (!poiLayer) {
+    console.log('[RouteMap] No poiLayer')
+    return
   }
+  poiLayer.eachLayer((layer) => {
+    const marker = layer as L.CircleMarker
+    const popup = marker.getPopup()
+    if (!popup) {
+      console.log('[RouteMap] Marker has no popup')
+      return
+    }
+    const content = popup.getContent()
+    console.log('[RouteMap] Popup content type:', typeof content, 'content:', content)
+    if (typeof content === 'string' && content.includes('wikidata.org/wiki')) {
+      const qidMatch = content.match(/wikidata\.org\/wiki\/([A-Z0-9]+)/)
+      if (qidMatch) {
+        console.log('[RouteMap] Refreshing popup for qid:', qidMatch[1])
+        marker.setPopupContent(buildPopupHtml(qidMatch[1]))
+      }
+    }
+  })
 }, { deep: true })
 
 watch(() => props.locale, () => {
