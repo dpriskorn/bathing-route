@@ -5,10 +5,10 @@ import GpxUploader from './components/GpxUploader.vue'
 import BufferControl from './components/BufferControl.vue'
 import RouteMap from './components/RouteMap.vue'
 import {
-  batchFetchSpotDetails,
   clearSpotDetailsCache,
   filterSpotsByLayer,
   getLayers,
+  getSpotDetails,
   type Backend,
   type CacheInfo,
   type LayerWithCount,
@@ -69,14 +69,6 @@ async function refreshLayers() {
   }
 }
 
-async function prefetchDetails() {
-  if (!data.value) return
-  const qids = visibleQids.value
-  await batchFetchSpotDetails(qids, locale.value, (progress) => {
-    spotDetails.value = progress
-  })
-}
-
 async function handleFileSelected(file: File) {
   error.value = null
   loading.value = true
@@ -84,12 +76,17 @@ async function handleFileSelected(file: File) {
     data.value = await analyze(file, bufferKm.value, backend.value)
     await refreshCacheInfo()
     await refreshLayers()
-    await prefetchDetails()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Analysis failed'
   } finally {
     loading.value = false
   }
+}
+
+async function handleFetchSpot(qid: string) {
+  if (spotDetails.value[qid]) return
+  const details = await getSpotDetails(qid, locale.value)
+  spotDetails.value = { ...spotDetails.value, [qid]: details }
 }
 
 async function handleBufferChange(value: number) {
@@ -223,6 +220,7 @@ onMounted(async () => {
           :locale="locale"
           :loading="loading"
           :visible-qids="visibleQids"
+          @fetch-spot="handleFetchSpot"
         />
       </section>
     </main>

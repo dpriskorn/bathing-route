@@ -30,6 +30,11 @@ let poiLayer: L.GeoJSON | null = null
 const zoom = ref(6)
 const center: L.LatLngExpression = [58.0, 14.0]
 const commonsUrlCache = ref<Record<string, CommonsImageInfo>>({})
+const loadingQids = ref<Set<string>>(new Set())
+
+const emit = defineEmits<{
+  'fetch-spot': [qid: string]
+}>()
 
 const routeCoords = computed<[number, number][]>(() => {
   if (!props.data) return []
@@ -53,6 +58,9 @@ function buildPopupHtml(qid: string): string {
   if (!spot) return `<div class="p-2">${qid}</div>`
   const details = props.spotDetails[qid]
   if (!details) {
+    if (loadingQids.value.has(qid)) {
+      return `<div class="p-2"><div class="spinner-border spinner-border-sm" role="status"></div> ${t('loading')}...</div>`
+    }
     return `<div class="p-2"><a href="https://www.wikidata.org/wiki/${qid}" target="_blank">${qid}</a></div>`
   }
   if (details.wikipedia_urls.length === 0) {
@@ -141,6 +149,12 @@ function updatePoiLayer() {
     onEachFeature: (feature, layer) => {
       const qid = feature.properties!.qid
       layer.bindPopup(() => buildPopupHtml(qid))
+      layer.on('click', () => {
+        if (!props.spotDetails[qid] && !loadingQids.value.has(qid)) {
+          loadingQids.value.add(qid)
+          emit('fetch-spot', qid)
+        }
+      })
     },
   }).addTo(map)
 }
@@ -182,6 +196,12 @@ watch(() => props.visibleQids, () => {
 })
 
 watch(() => props.spotDetails, async () => {
+  for (const qid of loadingQids.value) {
+    if (props.spotDetails[qid]) {
+      loadingQids.value.delete(qid)
+    }
+  }
+
   const filenames = Object.values(props.spotDetails)
     .filter(d => d.image_url && d.image_url.includes('Special:FilePath/'))
     .map(d => d.image_url!.split('Special:FilePath/').pop()!)
