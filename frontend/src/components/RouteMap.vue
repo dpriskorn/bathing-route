@@ -1,12 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import {
-  LMap,
-  LPolygon,
-  LPolyline,
-  LTileLayer,
-} from '@vue-leaflet/vue-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -25,10 +19,14 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
-const map = ref<any>(null)
+const mapContainer = ref<HTMLDivElement | null>(null)
+let map: L.Map | null = null
+let routeLayer: L.Polyline | null = null
+let bufferLayer: L.Polygon | null = null
+let poiLayer: L.GeoJSON | null = null
 
 const zoom = ref(6)
-const center = ref<[number, number]>([58.0, 14.0])
+const center: L.LatLngExpression = [58.0, 14.0]
 
 const routeCoords = computed<[number, number][]>(() => {
   if (!props.data) return []
@@ -47,13 +45,15 @@ const bathingSpots = computed<BathingSpotFeature[]>(() => {
   return props.data.bathing_spots.features
 })
 
-function buildPopupHtml(spot: BathingSpotFeature): string {
-  const details = props.spotDetails[spot.properties.qid]
+function buildPopupHtml(qid: string): string {
+  const spot = bathingSpots.value.find(s => s.properties.qid === qid)
+  if (!spot) return `<div class="p-2">${qid}</div>`
+  const details = props.spotDetails[qid]
   if (!details) {
-    return `<div class="p-2"><a href="https://www.wikidata.org/wiki/${spot.properties.qid}" target="_blank">${spot.properties.qid}</a></div>`
+    return `<div class="p-2"><a href="https://www.wikidata.org/wiki/${qid}" target="_blank">${qid}</a></div>`
   }
   if (details.wikipedia_urls.length === 0) {
-    console.info(`Wikipedia link missing for ${spot.properties.qid}`)
+    console.info(`Wikipedia link missing for ${qid}`)
   }
   let html = '<div class="p-2" style="min-width: 220px; max-width: 320px;">'
   if (details.image_url) {
@@ -70,8 +70,6 @@ function buildPopupHtml(spot: BathingSpotFeature): string {
   return html
 }
 
-const poiMarkers = ref<Map<string, L.CircleMarker>>(new Map())
-
 const poiStyle: L.CircleMarkerOptions = {
   radius: 6,
   color: '#42b983',
@@ -80,93 +78,163 @@ const poiStyle: L.CircleMarkerOptions = {
   weight: 2,
 }
 
-function clearMarkers() {
-  const leaflet = map.value?.leafletObject
-  if (!leaflet) return
-  for (const marker of poiMarkers.value.values()) {
-    try {
-      leaflet.removeLayer(marker)
-    } catch {
-      // ignore
-    }
+function updateRouteLayer() {
+  if (routeLayer) {
+    routeLayer.remove()
+    routeLayer = null
   }
-  poiMarkers.value.clear()
+  if (!map || routeCoords.value.length === 0) return
+  routeLayer = L.polyline(routeCoords.value, {
+    color: '#42b983',
+    weight: 4,
+  }).addTo(map)
 }
 
-function updatePoiMarkers() {
-  const leaflet = map.value?.leafletObject
-  if (!leaflet) return
-
-  clearMarkers()
-
-  for (const spot of bathingSpots.value) {
-    const marker = L.circleMarker(
-      [spot.geometry.coordinates[1], spot.geometry.coordinates[0]],
-      poiStyle
-    )
-    marker.bindPopup(buildPopupHtml(spot))
-    marker.addTo(leaflet)
-    poiMarkers.value.set(spot.properties.qid, marker)
+function updateBufferLayer() {
+  if (bufferLayer) {
+    bufferLayer.remove()
+    bufferLayer = null
   }
+  if (!map || bufferCoords.value.length === 0) return
+  bufferLayer = L.polygon(bufferCoords.value, {
+    color: '#42b983',
+    fillColor: '#42b983',
+    fillOpacity: 0.1,
+    weight: 2,
+  }).addTo(map)
 }
 
-function refreshPopups() {
-  for (const spot of bathingSpots.value) {
-    const marker = poiMarkers.value.get(spot.properties.qid)
-    if (marker) {
-      marker.setPopupContent(buildPopupHtml(spot))
-    }
+function updatePoiLayer() {
+  if (poiLayer) {
+    poiLayer.remove()
+    poiLayer = null
   }
+  if (!map || bathingSpots.value.length === 0) return
+
+  const geojson: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features: bathingSpots.value.map(spot => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [spot.geometry.coordinates[0], spot.geometry.coordinates[1]],
+      },
+      properties: { qid: spot.properties.qid },
+    })),
+  }
+
+  poiLayer = L.geoJSON(geojson, {
+    pointToLayer: (_, latlng) => L.circleMarker(latlng, poiStyle),
+    onEachFeature: (feature, layer) => {
+      const qid = feature.properties!.qid
+      layer.bindPopup(() => buildPopupHtml(qid))
+    },
+  }).addTo(map)
+}
+
+function fitBounds() {
+  if (!map || !props.data) return
+
+  const spots = bathingSpots.value
+  const route = routeCoords.value
+  const buffer = bufferCoords.value
+
+  if (spots.length === 0 && route.length === 0) return
+
+  const allCoords: [number, number][] = []
+
+  for (const spot of spots) {
+    allCoords.push([spot.geometry.coordinates[1], spot.geometry.coordinates[0]])
+  }
+  allCoords.push(...route)
+  for (const ring of buffer) {
+    allCoords.push(...ring)
+  }
+
+  if (allCoords.length === 0) return
+
+  const bounds = L.latLngBounds(allCoords)
+  map.fitBounds(bounds, { padding: [50, 50] })
+}
+
+function updateAllLayers() {
+  updateRouteLayer()
+  updateBufferLayer()
+  updatePoiLayer()
+  fitBounds()
 }
 
 watch(() => props.data, () => {
-  nextTick(() => updatePoiMarkers())
-})
+  updateAllLayers()
+}, { deep: true })
 
 watch(() => props.spotDetails, () => {
-  nextTick(() => refreshPopups())
+  if (poiLayer) {
+    poiLayer.eachLayer((layer) => {
+      const marker = layer as L.CircleMarker
+      if (marker.getPopup()) {
+        const content = marker.getPopup()?.getContent()
+        if (typeof content === 'string' && content.includes('</div>')) {
+          const qidMatch = content.match(/wikidata\.org\/wiki\/([A-Z0-9]+)/)
+          if (qidMatch) {
+            marker.setPopupContent(buildPopupHtml(qidMatch[1]))
+          }
+        }
+      }
+    })
+  }
 }, { deep: true })
 
 watch(() => props.locale, () => {
-  nextTick(() => refreshPopups())
+  if (poiLayer) {
+    poiLayer.eachLayer((layer) => {
+      const marker = layer as L.CircleMarker
+      if (marker.getPopup()) {
+        const content = marker.getPopup()?.getContent()
+        if (typeof content === 'string' && content.includes('</div>')) {
+          const qidMatch = content.match(/wikidata\.org\/wiki\/([A-Z0-9]+)/)
+          if (qidMatch) {
+            marker.setPopupContent(buildPopupHtml(qidMatch[1]))
+          }
+        }
+      }
+    })
+  }
 })
 
-function onMapReady() {
-  nextTick(() => updatePoiMarkers())
-}
+onMounted(() => {
+  if (!mapContainer.value) return
+
+  map = L.map(mapContainer.value, {
+    center,
+    zoom: zoom.value,
+  })
+
+  L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+      attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+    }
+  ).addTo(map)
+
+  map.on('zoomend', () => {
+    zoom.value = map!.getZoom()
+  })
+
+  updateAllLayers()
+})
+
+onUnmounted(() => {
+  if (map) {
+    map.remove()
+    map = null
+  }
+})
 </script>
 
 <template>
-  <div class="map-container">
-    <LMap
-      ref="map"
-      v-model:zoom="zoom"
-      v-model:center="center"
-      :use-global-leaflet="false"
-      style="height: 100%; width: 100%"
-      @ready="onMapReady"
-    >
-      <LTileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>'
-      />
-
-      <LPolyline
-        v-if="routeCoords.length > 0"
-        :lat-lngs="routeCoords"
-        color="#42b983"
-        :weight="4"
-      />
-
-      <LPolygon
-        v-if="bufferCoords.length > 0"
-        :lat-lngs="bufferCoords"
-        color="#42b983"
-        fill-color="#42b983"
-        :fill-opacity="0.1"
-        :weight="2"
-      />
-    </LMap>
+  <div class="map-wrapper">
+    <div ref="mapContainer" class="map-container"></div>
 
     <div v-if="loading" class="loading-overlay">
       <div class="spinner"></div>
@@ -179,12 +247,16 @@ function onMapReady() {
 </template>
 
 <style scoped>
-.map-container {
+.map-wrapper {
   position: relative;
   height: 100%;
   width: 100%;
+}
+
+.map-container {
+  height: 100%;
+  width: 100%;
   border-radius: 8px;
-  overflow: hidden;
 }
 
 .loading-overlay {
