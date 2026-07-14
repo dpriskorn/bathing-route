@@ -1,6 +1,11 @@
 # Bathing Route
 
-Find EU bathing spots (P9616) along a GPX route from GraphHopper, using Wikidata as the data source.
+Find EU bathing spots (P9616) along a GPX route from GraphHopper, using Wikidata as the data source. The buffer zone can be adjusted and the results can be saved as a GPX to ease navigation to the bathing sites found.
+
+## Screenshots
+<img width="904" height="720" alt="image" src="https://github.com/user-attachments/assets/1a3da2af-5023-4dfc-9ce0-95698377efde" />
+<img width="1327" height="1041" alt="image" src="https://github.com/user-attachments/assets/c7ed2c2a-3897-4a73-8692-c9b60d049f97" />
+
 
 ## Requirements
 
