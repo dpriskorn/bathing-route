@@ -95,8 +95,9 @@ async def clear_all_cache() -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         cursor1 = await db.execute("DELETE FROM label_cache")
         cursor2 = await db.execute("DELETE FROM commons_cache")
+        cursor3 = await db.execute("DELETE FROM wikidata_details_cache")
         await db.commit()
-        return cursor1.rowcount + cursor2.rowcount
+        return cursor1.rowcount + cursor2.rowcount + cursor3.rowcount
 
 
 async def get_cached_commons_image(filename: str) -> dict | None:

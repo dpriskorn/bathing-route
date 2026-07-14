@@ -53,6 +53,14 @@ async def test_clear_all_cache(tmp_path):
                     fetched_at TIMESTAMP NOT NULL
                 )
             """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS wikidata_details_cache (
+                    qid TEXT PRIMARY KEY,
+                    p18_image TEXT,
+                    sitelinks_json TEXT NOT NULL,
+                    fetched_at TIMESTAMP NOT NULL
+                )
+            """)
             await db.execute(
                 "INSERT INTO label_cache (qid, lang, label, fetched_at) VALUES (?, ?, ?, ?)",
                 ("Q1", "en", "test", "2024-01-01T00:00:00")
@@ -68,6 +76,9 @@ async def test_clear_all_cache(tmp_path):
                 row = await cursor.fetchone()
                 assert row[0] == 0
             async with db.execute("SELECT COUNT(*) FROM commons_cache") as cursor:
+                row = await cursor.fetchone()
+                assert row[0] == 0
+            async with db.execute("SELECT COUNT(*) FROM wikidata_details_cache") as cursor:
                 row = await cursor.fetchone()
                 assert row[0] == 0
 
