@@ -49,19 +49,26 @@ async def _fetch_p18(qid: str) -> str | None:
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(url, headers=headers, timeout=10.0)
+            log.info(f"P18 response status for {qid}: {response.status_code}")
             if response.status_code == 200:
                 data = response.json()
+                log.info(f"P18 response data for {qid}: {data}")
                 statements = data.get("P18", data.get("statements", {}).get("P18", []))
+                log.info(f"Statements for {qid}: {statements}")
                 for statement in statements:
+                    log.info(f"Processing statement: {statement}")
                     if "value" in statement and isinstance(statement.get("value"), dict) and "content" in statement["value"]:
-                        return statement["value"]["content"]
+                        result = statement["value"]["content"]
+                        log.info(f"P18 found (new format) for {qid}: {result}")
+                        return result
                     mainsnak = statement.get("mainsnak", {})
                     datavalue = mainsnak.get("datavalue", {})
                     value = datavalue.get("value")
                     if value:
+                        log.info(f"P18 found (legacy format) for {qid}: {value}")
                         return value
         except Exception as e:
-            log.warning(f"Failed to fetch P18 for {qid}: {e}")
+            log.error(f"Exception fetching P18 for {qid}: {e}")
     return None
 
 
