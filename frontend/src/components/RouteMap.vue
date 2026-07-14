@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   LMap,
@@ -108,33 +108,33 @@ function updatePoiLayer() {
 }
 
 watch(() => props.data, () => {
-  updatePoiLayer()
+  nextTick(() => updatePoiLayer())
 })
 
 watch(() => props.spotDetails, () => {
-  if (!poiLayer.value || !map.value?.leafletObject) return
-  const layers = poiLayer.value.getLayers()
-  for (const layer of layers) {
-    const marker = layer as L.CircleMarker
-    if (!marker.getLatLng) continue
-    const latlng = marker.getLatLng()
-    const qid = bathingSpots.value.find(
-      s => s.geometry.coordinates[1] === latlng.lat && s.geometry.coordinates[0] === latlng.lng
-    )?.properties.qid
-    if (qid) {
-      const spot = bathingSpots.value.find(s => s.properties.qid === qid)
-      if (spot) {
-        marker.setPopupContent(buildPopupHtml(spot))
+  nextTick(() => {
+    if (!poiLayer.value || !map.value?.leafletObject) return
+    const layers = poiLayer.value.getLayers()
+    for (const layer of layers) {
+      const marker = layer as L.CircleMarker
+      if (!marker.getLatLng) continue
+      const latlng = marker.getLatLng()
+      const qid = bathingSpots.value.find(
+        s => s.geometry.coordinates[1] === latlng.lat && s.geometry.coordinates[0] === latlng.lng
+      )?.properties.qid
+      if (qid) {
+        const spot = bathingSpots.value.find(s => s.properties.qid === qid)
+        if (spot) {
+          marker.setPopupContent(buildPopupHtml(spot))
+        }
       }
     }
-  }
+  })
 }, { deep: true })
 
 onMounted(() => {
   if (!props.data) return
-  setTimeout(() => {
-    updatePoiLayer()
-  }, 0)
+  nextTick(() => updatePoiLayer())
 })
 </script>
 
