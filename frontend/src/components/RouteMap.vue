@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   LMap,
@@ -70,7 +70,7 @@ function buildPopupHtml(spot: BathingSpotFeature): string {
   return html
 }
 
-const poiLayer = ref<L.LayerGroup | null>(null)
+const poiMarkers = ref<Map<string, L.CircleMarker>>(new Map())
 
 const poiStyle: L.CircleMarkerOptions = {
   radius: 6,
@@ -80,20 +80,24 @@ const poiStyle: L.CircleMarkerOptions = {
   weight: 2,
 }
 
-function updatePoiLayer() {
-  if (!map.value?.leafletObject) return
-  const leaflet = map.value.leafletObject
-  if (!leaflet._loaded) return
-
-  if (poiLayer.value) {
+function clearMarkers() {
+  const leaflet = map.value?.leafletObject
+  if (!leaflet) return
+  for (const marker of poiMarkers.value.values()) {
     try {
-      leaflet.removeLayer(poiLayer.value)
+      leaflet.removeLayer(marker)
     } catch {
-      poiLayer.value = null
+      // ignore
     }
   }
+  poiMarkers.value.clear()
+}
 
-  poiLayer.value = L.layerGroup()
+function updatePoiMarkers() {
+  const leaflet = map.value?.leafletObject
+  if (!leaflet) return
+
+  clearMarkers()
 
   for (const spot of bathingSpots.value) {
     const marker = L.circleMarker(
@@ -101,41 +105,35 @@ function updatePoiLayer() {
       poiStyle
     )
     marker.bindPopup(buildPopupHtml(spot))
-    poiLayer.value.addLayer(marker)
+    marker.addTo(leaflet)
+    poiMarkers.value.set(spot.properties.qid, marker)
   }
+}
 
-  poiLayer.value.addTo(leaflet)
+function refreshPopups() {
+  for (const spot of bathingSpots.value) {
+    const marker = poiMarkers.value.get(spot.properties.qid)
+    if (marker) {
+      marker.setPopupContent(buildPopupHtml(spot))
+    }
+  }
 }
 
 watch(() => props.data, () => {
-  nextTick(() => updatePoiLayer())
+  nextTick(() => updatePoiMarkers())
 })
 
 watch(() => props.spotDetails, () => {
-  nextTick(() => {
-    if (!poiLayer.value || !map.value?.leafletObject) return
-    const layers = poiLayer.value.getLayers()
-    for (const layer of layers) {
-      const marker = layer as L.CircleMarker
-      if (!marker.getLatLng) continue
-      const latlng = marker.getLatLng()
-      const qid = bathingSpots.value.find(
-        s => s.geometry.coordinates[1] === latlng.lat && s.geometry.coordinates[0] === latlng.lng
-      )?.properties.qid
-      if (qid) {
-        const spot = bathingSpots.value.find(s => s.properties.qid === qid)
-        if (spot) {
-          marker.setPopupContent(buildPopupHtml(spot))
-        }
-      }
-    }
-  })
+  nextTick(() => refreshPopups())
 }, { deep: true })
 
-onMounted(() => {
-  if (!props.data) return
-  nextTick(() => updatePoiLayer())
+watch(() => props.locale, () => {
+  nextTick(() => refreshPopups())
 })
+
+function onMapReady() {
+  nextTick(() => updatePoiMarkers())
+}
 </script>
 
 <template>
@@ -146,6 +144,7 @@ onMounted(() => {
       v-model:center="center"
       :use-global-leaflet="false"
       style="height: 100%; width: 100%"
+      @ready="onMapReady"
     >
       <LTileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
