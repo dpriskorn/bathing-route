@@ -54,22 +54,22 @@ flowchart TD
         D --> E[Display on Map - Leaflet CircleMarkers]
         E --> F[Click Marker]
         F --> G[Show Popup]
-        G --> H[fetch /api/wikidata/Q12345/details]
-        H --> I[fetch /api/commons-image for thumbnails]
+        G --> H[fetch wikidata details]
+        H --> I[fetch commons image for thumbnails]
     end
 
     subgraph Backend["Backend (FastAPI)"]
         B -->|parse GPX + buffer| J[Geo Service]
         J --> K[Filter Spots by Buffer]
-        K --> L[Return GeoJSON - bathing_spots + route + buffer]
+        K --> L[Return GeoJSON]
 
         H --> M[Check wikidata.db]
         M -->|miss| N[Wikidata REST API v1]
-        N --> O[/v1/entities/items/id/labels/lang]
-        N --> P[/v1/entities/items/id/statements property=P18]
-        N --> Q[/v1/entities/items/id/sitelinks]
+        N --> O[get labels endpoint]
+        N --> P[get P18 statements endpoint]
+        N --> Q[get sitelinks endpoint]
         M -->|hit| R[Return Cached]
-        N --> S[wikidata.db 7-day TTL - label_cache wikidata_details_cache commons_cache]
+        N --> S[wikidata.db 7-day TTL]
         S --> R
 
         I --> T[Commons API Proxy]
@@ -79,7 +79,7 @@ flowchart TD
     subgraph Wikidata["Wikidata"]
         O & P & Q --> V[Wikidata REST API]
         V --> W[(SPARQL WDQS/QLever)]
-        W --> X[sites.db 24h TTL - bathing_spot_cache]
+        W --> X[sites.db 24h TTL]
     end
 
     X -.->|load_bathing_spots_all ENHANCED_QUERY| K
