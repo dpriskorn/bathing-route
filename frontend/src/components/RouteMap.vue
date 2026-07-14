@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import {
   LGeoJson,
   LMap,
@@ -8,6 +8,7 @@ import {
   LPolyline,
   LTileLayer,
 } from '@vue-leaflet/vue-leaflet'
+import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 import type {
@@ -43,6 +44,16 @@ const bathingSpots = computed<BathingSpotFeature[]>(() => {
 function wikidataUrl(qid: string): string {
   return `https://www.wikidata.org/wiki/${qid}`
 }
+
+const defaultIcon = L.icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+})
 </script>
 
 <template>
@@ -79,6 +90,7 @@ function wikidataUrl(qid: string): string {
         v-for="spot in bathingSpots"
         :key="spot.properties.qid"
         :lat-lng="[spot.geometry.coordinates[1], spot.geometry.coordinates[0]]"
+        :icon="defaultIcon"
       >
         <template #popup>
           <div class="popup-content">
