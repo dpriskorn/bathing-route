@@ -248,9 +248,11 @@ watch(commonsUrlCache, () => {
       return
     }
     const content = popup.getContent()
-    console.log('[RouteMap] Popup content type:', typeof content, 'content:', content)
-    if (typeof content === 'string' && content.includes('wikidata.org/wiki')) {
-      const qidMatch = content.match(/wikidata\.org\/wiki\/([A-Z0-9]+)/)
+    console.log('[RouteMap] Popup content type:', typeof content)
+    const contentStr = typeof content === 'function' ? content() : content
+    console.log('[RouteMap] Popup content str:', contentStr)
+    if (typeof contentStr === 'string' && contentStr.includes('wikidata.org/wiki')) {
+      const qidMatch = contentStr.match(/wikidata\.org\/wiki\/([A-Z0-9]+)/)
       if (qidMatch) {
         console.log('[RouteMap] Refreshing popup for qid:', qidMatch[1])
         marker.setPopupContent(buildPopupHtml(qidMatch[1]))
