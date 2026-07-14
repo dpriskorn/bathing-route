@@ -227,6 +227,23 @@ watch(() => props.spotDetails, async () => {
   }
 }, { deep: true })
 
+watch(commonsUrlCache, () => {
+  if (poiLayer) {
+    poiLayer.eachLayer((layer) => {
+      const marker = layer as L.CircleMarker
+      if (marker.getPopup()) {
+        const content = marker.getPopup()?.getContent()
+        if (typeof content === 'string' && content.includes('</div>')) {
+          const qidMatch = content.match(/wikidata\.org\/wiki\/([A-Z0-9]+)/)
+          if (qidMatch) {
+            marker.setPopupContent(buildPopupHtml(qidMatch[1]))
+          }
+        }
+      }
+    })
+  }
+}, { deep: true })
+
 watch(() => props.locale, () => {
   if (poiLayer) {
     poiLayer.eachLayer((layer) => {
