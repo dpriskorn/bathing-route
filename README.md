@@ -54,7 +54,7 @@ flowchart TD
         D --> E[Display on Map - Leaflet CircleMarkers]
         E --> F[Click Marker]
         F --> G[Show Popup]
-        G --> H[fetch /api/wikidata/{qid}/details]
+        G --> H[fetch /api/wikidata/Q12345/details]
         H --> I[fetch /api/commons-image for thumbnails]
     end
 
