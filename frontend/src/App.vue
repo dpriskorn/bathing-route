@@ -49,8 +49,17 @@ async function refreshCacheInfo() {
 }
 
 async function refreshLayers() {
+  if (!data.value) {
+    layers.value = []
+    return
+  }
   try {
-    layers.value = await getLayers()
+    const allLayers = await getLayers()
+    const spots = data.value.bathing_spots.features
+    layers.value = allLayers.map(item => ({
+      layer: item.layer,
+      count: filterSpotsByLayer(spots, item.layer).length,
+    }))
     const defaultItem = layers.value.find(l => l.layer.default_visible) || layers.value[0]
     if (defaultItem) {
       selectedLayerId.value = defaultItem.layer.id
