@@ -1,4 +1,12 @@
 layers:
+  - id: alla_bad
+    name: "Alla bad"
+    name_sv: "Alla bad"
+    filter: {}
+    color: "#95a5a6"
+    icon: "circle"
+    default_visible: true
+
   - id: eubad
     name: "EU-bad"
     name_sv: "EU-bad"
@@ -6,7 +14,7 @@ layers:
       has_property: P9616
     color: "#42b983"
     icon: "circle"
-    default_visible: true
+    default_visible: false
 
   - id: eubad_no_image
     name: "EU-bad utan bild"

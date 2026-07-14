@@ -160,22 +160,14 @@ def test_analyze_wdqs_all_backend(client):
 
 
 def test_get_layers(client):
-    with patch("bathing_route.api.wikidata_service.WikidataService") as MockWDS:
-        mock_instance = MockWDS.return_value
-        mock_instance.is_loaded.return_value = True
-        mock_instance.get_bathing_spots.return_value = [
-            type("BathingSpot", (), {"qid": "Q1", "lat": 58.0, "lon": 14.0, "image_url": "img.jpg", "commons_category": "cat", "has_eu_bath": True})(),
-            type("BathingSpot", (), {"qid": "Q2", "lat": 59.0, "lon": 15.0, "image_url": None, "commons_category": None, "has_eu_bath": True})(),
-            type("BathingSpot", (), {"qid": "Q3", "lat": 60.0, "lon": 16.0, "image_url": None, "commons_category": "cat3", "has_eu_bath": False})(),
-        ]
-
-        response = client.get("/api/layers")
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 4
-        layer_ids = [l["layer"]["id"] for l in data]
-        assert "eubad" in layer_ids
-        assert "eubad_no_image" in layer_ids
-        assert "all_no_image" in layer_ids
-        assert "all_no_p18_commons" in layer_ids
+    response = client.get("/api/layers")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 5
+    layer_ids = [l["layer"]["id"] for l in data]
+    assert "alla_bad" in layer_ids
+    assert "eubad" in layer_ids
+    assert "eubad_no_image" in layer_ids
+    assert "all_no_image" in layer_ids
+    assert "all_no_p18_commons" in layer_ids
