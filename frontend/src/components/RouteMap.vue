@@ -1,0 +1,154 @@
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
+import {
+  LGeoJson,
+  LMap,
+  LMarker,
+  LPolygon,
+  LPolyline,
+  LTileLayer,
+} from '@vue-leaflet/vue-leaflet'
+import 'leaflet/dist/leaflet.css'
+
+import type {
+  AnalyzeResponse,
+  BathingSpotFeature,
+} from '../composables/useRoute'
+
+const props = defineProps<{
+  data: AnalyzeResponse | null
+  loading: boolean
+}>()
+
+const zoom = ref(6)
+const center = ref<[number, number]>([58.0, 14.0])
+
+const routeCoords = computed<[number, number][]>(() => {
+  if (!props.data) return []
+  return props.data.route.geometry.coordinates.map(([lon, lat]) => [lat, lon])
+})
+
+const bufferCoords = computed<[number, number][][]>(() => {
+  if (!props.data) return []
+  return props.data.buffer.geometry.coordinates.map((ring) =>
+    ring.map(([lon, lat]) => [lat, lon] as [number, number])
+  )
+})
+
+const bathingSpots = computed<BathingSpotFeature[]>(() => {
+  if (!props.data) return []
+  return props.data.bathing_spots.features
+})
+
+function wikidataUrl(qid: string): string {
+  return `https://www.wikidata.org/wiki/${qid}`
+}
+</script>
+
+<template>
+  <div class="map-container">
+    <LMap
+      ref="map"
+      v-model:zoom="zoom"
+      v-model:center="center"
+      :use-global-leaflet="false"
+      style="height: 100%; width: 100%"
+    >
+      <LTileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>'
+      />
+
+      <LPolyline
+        v-if="routeCoords.length > 0"
+        :lat-lngs="routeCoords"
+        color="#42b983"
+        :weight="4"
+      />
+
+      <LPolygon
+        v-if="bufferCoords.length > 0"
+        :lat-lngs="bufferCoords"
+        color="#42b983"
+        fill-color="#42b983"
+        :fill-opacity="0.1"
+        :weight="2"
+      />
+
+      <LMarker
+        v-for="spot in bathingSpots"
+        :key="spot.properties.qid"
+        :lat-lng="[spot.geometry.coordinates[1], spot.geometry.coordinates[0]]"
+      >
+        <template #popup>
+          <div class="popup-content">
+            <strong>{{ spot.properties.label }}</strong>
+            <br />
+            <a :href="wikidataUrl(spot.properties.qid)" target="_blank" rel="noopener">
+              {{ spot.properties.qid }}
+            </a>
+          </div>
+        </template>
+      </LMarker>
+    </LMap>
+
+    <div v-if="loading" class="loading-overlay">
+      <div class="spinner"></div>
+    </div>
+
+    <div v-if="!data && !loading" class="placeholder">
+      <p>Upload a GPX file to see bathing spots along your route</p>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.map-container {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.popup-content {
+  font-size: 0.9rem;
+}
+
+.popup-content a {
+  color: #42b983;
+}
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #eee;
+  border-top-color: #42b983;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  pointer-events: none;
+}
+</style>

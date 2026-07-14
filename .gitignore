@@ -1,0 +1,11 @@
+*.gpx
+__pycache__/
+*.pyc
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+backend/__pycache__/
+backend/cache.db
+frontend/node_modules/
+frontend/dist/
