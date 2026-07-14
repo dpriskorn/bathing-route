@@ -60,13 +60,14 @@ function buildPopupHtml(qid: string): string {
   }
   let html = '<div class="p-2" style="min-width: 220px; max-width: 320px;">'
   if (details.image_url) {
-    if (details.image_url.startsWith('Special:FilePath/')) {
+    const filename = details.image_url.includes('Special:FilePath/')
+      ? details.image_url.split('Special:FilePath/').pop()!
+      : details.image_url
+    const cached = commonsUrlCache.value[filename]
+    if (cached?.thumburl) {
+      html += `<a href="${cached.url}" target="_blank" rel="noopener"><img src="${cached.thumburl}" class="img-fluid mb-2" style="max-height: 200px;" /></a>`
+    } else if (details.image_url) {
       html += `<a href="${details.image_url}" target="_blank" rel="noopener"><img src="${details.image_url}?width=400" class="img-fluid mb-2" style="max-height: 200px;" /></a>`
-    } else {
-      const cached = commonsUrlCache.value[details.image_url]
-      if (cached?.thumburl) {
-        html += `<a href="${cached.url}" target="_blank" rel="noopener"><img src="${cached.thumburl}" class="img-fluid mb-2" style="max-height: 200px;" /></a>`
-      }
     }
   }
   html += `<h6>${details.label}</h6>`
@@ -182,8 +183,8 @@ watch(() => props.visibleQids, () => {
 
 watch(() => props.spotDetails, async () => {
   const filenames = Object.values(props.spotDetails)
-    .filter(d => d.image_url && !d.image_url.startsWith('Special:FilePath/'))
-    .map(d => d.image_url as string)
+    .filter(d => d.image_url && d.image_url.includes('Special:FilePath/'))
+    .map(d => d.image_url!.split('Special:FilePath/').pop()!)
 
   if (filenames.length > 0) {
     const newUrls = await batchFetchImageUrls(filenames)
