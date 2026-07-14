@@ -1,6 +1,7 @@
 *.gpx
 __pycache__/
 *.pyc
+.coverage
 *.egg-info/
 .ruff_cache/
 .mypy_cache/
