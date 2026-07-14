@@ -5,11 +5,14 @@ from collections.abc import AsyncGenerator
 from fastapi import FastAPI
 
 from bathing_route.cache import init_cache
+from bathing_route.label_cache import cleanup_expired_cache, init_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_cache()
+    await init_db()
+    await cleanup_expired_cache()
     yield
 
 
@@ -21,8 +24,10 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
-    from bathing_route.api import router
-    app.include_router(router)
+    from bathing_route.api import router as api_router
+    from bathing_route.routers.wikidata import router as wikidata_router
+    app.include_router(api_router)
+    app.include_router(wikidata_router)
     return app
 
 

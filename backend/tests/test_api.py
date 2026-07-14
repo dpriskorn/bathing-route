@@ -86,7 +86,7 @@ def test_analyze_valid_gpx(client):
     files = {"file": ("route.gpx", BytesIO(gpx_content), "application/gpx+xml")}
 
     mock_spots = [
-        type("BathingSpot", (), {"qid": "Q1", "label": "Test Spot", "lat": 58.05, "lon": 14.05})(),
+        type("BathingSpot", (), {"qid": "Q1", "lat": 58.05, "lon": 14.05, "image_url": None})(),
     ]
 
     with patch("bathing_route.api.wikidata_service.WikidataService") as MockWDS:
@@ -105,3 +105,26 @@ def test_analyze_valid_gpx(client):
         assert "buffer" in data
         assert data["route"]["geometry"]["type"] == "LineString"
         assert data["buffer"]["geometry"]["type"] == "Polygon"
+
+
+def test_bathing_spots_count_loaded(client):
+    with patch("bathing_route.api.wikidata_service.WikidataService") as MockWDS:
+        mock_instance = MockWDS.return_value
+        mock_instance.is_loaded.return_value = True
+        mock_instance.get_bathing_spots.return_value = [
+            type("BathingSpot", (), {"qid": "Q1", "lat": 1.0, "lon": 2.0, "image_url": None})(),
+        ]
+
+        response = client.get("/api/bathing-spots/count")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 1
+
+
+def test_bathing_spots_count_not_loaded(client):
+    with patch("bathing_route.api.wikidata_service.WikidataService") as MockWDS:
+        mock_instance = MockWDS.return_value
+        mock_instance.is_loaded.return_value = False
+
+        response = client.get("/api/bathing-spots/count")
+        assert response.status_code == 503

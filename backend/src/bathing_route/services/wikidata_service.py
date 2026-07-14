@@ -19,10 +19,10 @@ PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 """
 
 EU_BATH_QUERY = """
-SELECT DISTINCT ?item ?itemLabel ?coord WHERE {
+SELECT DISTINCT ?item ?coord ?image WHERE {
   ?item wdt:P9616 ?euBathId .
   ?item wdt:P625 ?coord .
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+  OPTIONAL { ?item wdt:P18 ?image }
 }
 """
 
@@ -85,11 +85,14 @@ class WikidataService:
             if not coord:
                 continue
 
+            image_value = r.get("image", {}).get("value")
+            image_url = self._parse_image_url(image_value) if image_value else None
+
             self._bathing_spots.append(BathingSpot(
                 qid=qid,
-                label=r.get("itemLabel", {}).get("value", ""),
                 lat=coord["lat"],
                 lon=coord["lon"],
+                image_url=image_url,
             ))
 
         await set_cached_spots(backend, self._bathing_spots)
@@ -114,3 +117,6 @@ class WikidataService:
         if match:
             return {"lon": float(match.group(1)), "lat": float(match.group(2))}
         return None
+
+    def _parse_image_url(self, filename: str) -> str:
+        return f"https://commons.wikimedia.org/wiki/Special:FilePath/{filename}"

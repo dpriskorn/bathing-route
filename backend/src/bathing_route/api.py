@@ -95,7 +95,7 @@ async def analyze(
             geometry=GeoJSONPoint(type="Point", coordinates=[spot.lon, spot.lat]),
             properties={
                 "qid": spot.qid,
-                "label": spot.label,
+                "image_url": spot.image_url,
             },
         ))
 

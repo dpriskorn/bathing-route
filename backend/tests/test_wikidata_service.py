@@ -56,8 +56,8 @@ class TestWikidataServiceLoad:
                 "bindings": [
                     {
                         "item": {"value": "http://www.wikidata.org/entity/Q1"},
-                        "itemLabel": {"value": "Test Beach"},
                         "coord": {"value": "Point(14.0 58.0)"},
+                        "image": {"value": "Test_Beach.jpg"},
                     },
                 ]
             }
@@ -76,9 +76,9 @@ class TestWikidataServiceLoad:
         spots = svc.get_bathing_spots()
         assert len(spots) == 1
         assert spots[0].qid == "Q1"
-        assert spots[0].label == "Test Beach"
         assert spots[0].lat == 58.0
         assert spots[0].lon == 14.0
+        assert spots[0].image_url == "https://commons.wikimedia.org/wiki/Special:FilePath/Test_Beach.jpg"
         assert svc.get_loaded_backend() == "wdqs"
 
     @pytest.mark.asyncio

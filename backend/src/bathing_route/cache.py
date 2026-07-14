@@ -9,7 +9,7 @@ from bathing_route.models import BathingSpot
 
 log = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).parent.parent.parent / "cache.db"
+DB_PATH = Path(__file__).parent.parent.parent / "sites.db"
 CACHE_TTL_HOURS = 24
 
 
@@ -19,9 +19,9 @@ async def init_cache() -> None:
             CREATE TABLE IF NOT EXISTS bathing_spot_cache (
                 backend TEXT NOT NULL,
                 qid TEXT NOT NULL,
-                label TEXT NOT NULL,
                 lat REAL NOT NULL,
                 lon REAL NOT NULL,
+                image_url TEXT,
                 fetched_at TEXT NOT NULL,
                 PRIMARY KEY (backend, qid)
             )
@@ -30,7 +30,7 @@ async def init_cache() -> None:
             CREATE INDEX IF NOT EXISTS idx_bathing_cache_fetched_at ON bathing_spot_cache(fetched_at)
         """)
         await db.commit()
-    log.info(f"Cache database initialized at {DB_PATH}")
+    log.info(f"Sites database initialized at {DB_PATH}")
 
 
 async def get_cached_spots(backend: str) -> tuple[list[BathingSpot], str] | None:
@@ -39,7 +39,7 @@ async def get_cached_spots(backend: str) -> tuple[list[BathingSpot], str] | None
 
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
-            "SELECT qid, label, lat, lon, fetched_at FROM bathing_spot_cache WHERE backend = ? AND fetched_at > ?",
+            "SELECT qid, lat, lon, image_url, fetched_at FROM bathing_spot_cache WHERE backend = ? AND fetched_at > ?",
             (backend, cutoff_str),
         ) as cursor:
             rows = await cursor.fetchall()
@@ -48,7 +48,7 @@ async def get_cached_spots(backend: str) -> tuple[list[BathingSpot], str] | None
             first = tuple(rows[0])  # type: ignore[index]
             fetched_at = first[4]
             spots = [
-                BathingSpot(qid=row[0], label=row[1], lat=row[2], lon=row[3])
+                BathingSpot(qid=row[0], lat=row[1], lon=row[2], image_url=row[3])
                 for row in rows
             ]
             return spots, fetched_at
@@ -59,8 +59,8 @@ async def set_cached_spots(backend: str, spots: list[BathingSpot]) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         for spot in spots:
             await db.execute(
-                "INSERT OR REPLACE INTO bathing_spot_cache (backend, qid, label, lat, lon, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (backend, spot.qid, spot.label, spot.lat, spot.lon, now),
+                "INSERT OR REPLACE INTO bathing_spot_cache (backend, qid, lat, lon, image_url, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (backend, spot.qid, spot.lat, spot.lon, spot.image_url, now),
             )
         await db.commit()
     log.info(f"Cached {len(spots)} spots for backend '{backend}'")

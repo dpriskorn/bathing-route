@@ -1,0 +1,14 @@
+{
+  "uploadGpx": "Ladda upp GPX-fil",
+  "bufferKm": "Buffert (km)",
+  "language": "Språk",
+  "bathingSpotsFound": "{count} badplatser hittades",
+  "cache": "Cache",
+  "clearCache": "Rensa cache",
+  "fresh": "färsk",
+  "stale": "gammal",
+  "uploadPrompt": "Ladda upp en GPX-fil för att se badplatser längs din rutt",
+  "loading": "Laddar...",
+  "wikidata": "Wikidata",
+  "wikipedia": "Wikipedia"
+}

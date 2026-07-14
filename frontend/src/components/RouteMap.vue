@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
-  LGeoJson,
   LMap,
   LMarker,
   LPolygon,
@@ -14,12 +14,17 @@ import 'leaflet/dist/leaflet.css'
 import type {
   AnalyzeResponse,
   BathingSpotFeature,
+  SpotDetails,
 } from '../composables/useRoute'
 
 const props = defineProps<{
   data: AnalyzeResponse | null
+  spotDetails: Record<string, SpotDetails>
+  locale: string
   loading: boolean
 }>()
+
+const { t } = useI18n()
 
 const zoom = ref(6)
 const center = ref<[number, number]>([58.0, 14.0])
@@ -40,10 +45,6 @@ const bathingSpots = computed<BathingSpotFeature[]>(() => {
   if (!props.data) return []
   return props.data.bathing_spots.features
 })
-
-function wikidataUrl(qid: string): string {
-  return `https://www.wikidata.org/wiki/${qid}`
-}
 
 const defaultIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -93,10 +94,35 @@ const defaultIcon = L.icon({
         :icon="defaultIcon"
       >
         <template #popup>
-          <div class="popup-content">
-            <strong>{{ spot.properties.label }}</strong>
-            <br />
-            <a :href="wikidataUrl(spot.properties.qid)" target="_blank" rel="noopener">
+          <div v-if="spotDetails[spot.properties.qid]" class="p-2" style="min-width: 220px; max-width: 320px;">
+            <a
+              v-if="spotDetails[spot.properties.qid].image_url"
+              :href="spotDetails[spot.properties.qid].image_url"
+              target="_blank"
+              rel="noopener"
+            >
+              <img
+                :src="spotDetails[spot.properties.qid].image_url + '?width=400'"
+                class="img-fluid mb-2"
+                style="max-height: 200px; cursor: pointer;"
+              />
+            </a>
+            <h6>{{ spotDetails[spot.properties.qid].label }}</h6>
+            <div class="mb-1">
+              <a :href="spotDetails[spot.properties.qid].wikidata_url" target="_blank" class="text-primary">{{ t('wikidata') }}</a>
+              <span v-if="spotDetails[spot.properties.qid].wikipedia_urls.length">
+                | <a
+                  v-for="wiki in spotDetails[spot.properties.qid].wikipedia_urls"
+                  :key="wiki.lang"
+                  :href="wiki.url"
+                  target="_blank"
+                  class="text-decoration-none me-1"
+                >{{ wiki.lang }}</a>
+              </span>
+            </div>
+          </div>
+          <div v-else class="p-2">
+            <a :href="'https://www.wikidata.org/wiki/' + spot.properties.qid" target="_blank">
               {{ spot.properties.qid }}
             </a>
           </div>
@@ -109,7 +135,7 @@ const defaultIcon = L.icon({
     </div>
 
     <div v-if="!data && !loading" class="placeholder">
-      <p>Upload a GPX file to see bathing spots along your route</p>
+      <p>{{ t('uploadPrompt') }}</p>
     </div>
   </div>
 </template>
@@ -121,14 +147,6 @@ const defaultIcon = L.icon({
   width: 100%;
   border-radius: 8px;
   overflow: hidden;
-}
-
-.popup-content {
-  font-size: 0.9rem;
-}
-
-.popup-content a {
-  color: #42b983;
 }
 
 .loading-overlay {

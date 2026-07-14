@@ -10,9 +10,9 @@ class Coordinates(BaseModel):
 
 class BathingSpot(BaseModel):
     qid: str
-    label: str
     lat: float
     lon: float
+    image_url: str | None = None
 
 
 class GPXRoute(BaseModel):

@@ -1,0 +1,14 @@
+{
+  "uploadGpx": "Upload GPX file",
+  "bufferKm": "Buffer (km)",
+  "language": "Language",
+  "bathingSpotsFound": "{count} bathing spots found",
+  "cache": "Cache",
+  "clearCache": "Clear cache",
+  "fresh": "fresh",
+  "stale": "stale",
+  "uploadPrompt": "Upload a GPX file to see bathing spots along your route",
+  "loading": "Loading...",
+  "wikidata": "Wikidata",
+  "wikipedia": "Wikipedia"
+}
