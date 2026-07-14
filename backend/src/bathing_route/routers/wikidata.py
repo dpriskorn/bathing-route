@@ -51,8 +51,10 @@ async def _fetch_p18(qid: str) -> str | None:
             response = await client.get(url, headers=headers, timeout=10.0)
             if response.status_code == 200:
                 data = response.json()
-                statements = data.get("statements", {}).get("P18", [])
+                statements = data.get("P18", data.get("statements", {}).get("P18", []))
                 for statement in statements:
+                    if "value" in statement and isinstance(statement.get("value"), dict) and "content" in statement["value"]:
+                        return statement["value"]["content"]
                     mainsnak = statement.get("mainsnak", {})
                     datavalue = mainsnak.get("datavalue", {})
                     value = datavalue.get("value")
@@ -72,13 +74,18 @@ async def _fetch_sitelinks(qid: str) -> list[dict[str, str]]:
             if response.status_code == 200:
                 data = response.json()
                 sitelinks: list[dict[str, str]] = []
-                for link in data.get("sitelinks", []):
-                    site = link.get("site", "")
-                    if not site.endswith("wiki") or site == "commonswiki":
+                for site_key, link_data in data.items():
+                    if not isinstance(link_data, dict):
                         continue
-                    title = link.get("title", "").replace(" ", "_")
-                    lang_code = site.replace("wiki", "")
-                    wiki_url = f"https://{lang_code}.wikipedia.org/wiki/{title}"
+                    if not site_key.endswith("wiki") or site_key == "commonswiki":
+                        continue
+                    title = link_data.get("title", "").replace(" ", "_")
+                    wiki_url = link_data.get("url", "")
+                    if not wiki_url:
+                        lang_code = site_key.replace("wiki", "")
+                        wiki_url = f"https://{lang_code}.wikipedia.org/wiki/{title}"
+                    else:
+                        lang_code = site_key.replace("wiki", "")
                     sitelinks.append({
                         "lang": lang_code,
                         "title": title,

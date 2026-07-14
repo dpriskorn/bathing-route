@@ -191,11 +191,9 @@ class TestFetchSitelinks:
     async def test_fetch_sitelinks_returns_list(self):
         from bathing_route.routers.wikidata import _fetch_sitelinks
         mock_response = {
-            "sitelinks": [
-                {"site": "enwiki", "title": "Beach"},
-                {"site": "svwiki", "title": "Strand"},
-                {"site": "commonswiki", "title": "File:Beach.jpg"},
-            ]
+            "enwiki": {"title": "Beach", "url": "https://en.wikipedia.org/wiki/Beach"},
+            "svwiki": {"title": "Strand", "url": "https://sv.wikipedia.org/wiki/Strand"},
+            "commonswiki": {"title": "Category:Beach", "url": "https://commons.wikimedia.org/wiki/Category:Beach"},
         }
         with patch("bathing_route.routers.wikidata.httpx.AsyncClient") as mock_client:
             mock_aclient = AsyncMock()
