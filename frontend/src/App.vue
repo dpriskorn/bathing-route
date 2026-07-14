@@ -113,14 +113,10 @@ async function handleBackendChange(value: Backend) {
 }
 
 async function handleLayerChange() {
-  await prefetchDetails()
 }
 
 async function handleLocaleChange() {
   localStorage.setItem('locale', locale.value)
-  if (data.value) {
-    await prefetchDetails()
-  }
 }
 
 async function handleClearCache() {
