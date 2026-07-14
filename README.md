@@ -43,6 +43,48 @@ just be-test   # Backend only (pytest, 80% coverage required)
 just fe-test   # Frontend only (vitest)
 ```
 
+## Architecture
+
+```mermaid
+flowchart TD
+    subgraph Frontend["Frontend (Vue 3 + Vite)"]
+        A[GPX Upload] --> B[POST /api/analyze]
+        B --> C[GeoJSON Response]
+        C --> D[Filter by Layer]
+        D --> E[Display on Map<br/>Leaflet CircleMarkers]
+        E --> F[Click Marker]
+        F --> G[Show Popup]
+        G --> H[fetch /api/wikidata/{qid}/details]
+        H --> I[fetch /api/commons-image<br/>for thumbnails]
+    end
+
+    subgraph Backend["Backend (FastAPI)"]
+        B -->|parse GPX + buffer| J[Geo Service]
+        J --> K[Filter Spots by Buffer]
+        K --> L[Return GeoJSON<br/>bathing_spots + route + buffer]
+
+        H --> M[Check wikidata.db]
+        M -->|miss| N[Wikidata REST API v1]
+        N --> O[/v1/entities/items/{id}/labels/{lang}]
+        N --> P[/v1/entities/items/{id}/statements?property=P18]
+        N --> Q[/v1/entities/items/{id}/sitelinks]
+        M -->|hit| R[Return Cached]
+        N --> S[wikidata.db<br/>7-day TTL<br/>label_cache<br/>wikidata_details_cache<br/>commons_cache]
+        S --> R
+
+        I --> T[Commons API Proxy]
+        T --> U[wikidata.db<br/>commons_cache<br/>7-day TTL]
+    end
+
+    subgraph Wikidata["Wikidata"]
+        O & P & Q --> V[Wikidata REST API]
+        V --> W[(SPARQL<br/>WDQS/QLever)]
+        W --> X[sites.db<br/>24h TTL<br/>bathing_spot_cache]
+    end
+
+    X -.->|load_bathing_spots_all<br/>ENHANCED_QUERY| K
+```
+
 ### Backend Details
 
 - **Framework**: FastAPI + uvicorn
@@ -56,9 +98,10 @@ just fe-test   # Frontend only (vitest)
 ### Frontend Details
 
 - **Framework**: Vue 3 + Vite + TypeScript
-- **Map**: Leaflet via vue-leaflet
+- **Map**: Leaflet (native, not vue-leaflet)
 - **UI**: Bootstrap 5 + vue-i18n (English / Swedish)
 - **State**: Composables (`useRoute.ts`)
+- **Image handling**: Commons images proxied through backend to avoid CORS
 
 ## Environment
 
