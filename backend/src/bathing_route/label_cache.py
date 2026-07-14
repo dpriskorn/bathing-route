@@ -36,6 +36,17 @@ async def init_db() -> None:
         await db.execute("""
             CREATE INDEX IF NOT EXISTS idx_commons_cache_fetched_at ON commons_cache(fetched_at)
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS wikidata_details_cache (
+                qid TEXT PRIMARY KEY,
+                p18_image TEXT,
+                sitelinks_json TEXT NOT NULL,
+                fetched_at TIMESTAMP NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE INDEX IF NOT EXISTS idx_wikidata_details_fetched_at ON wikidata_details_cache(fetched_at)
+        """)
         await db.commit()
     log.info(f"Label database initialized at {DB_PATH}")
 
@@ -118,3 +129,37 @@ async def clear_commons_cache() -> int:
         cursor = await db.execute("DELETE FROM commons_cache")
         await db.commit()
         return cursor.rowcount
+
+
+async def get_cached_wikidata_details(qid: str) -> tuple[str | None, list[dict[str, str]]] | None:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=CACHE_TTL_DAYS)
+    cutoff_str = cutoff.isoformat()
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT p18_image, sitelinks_json FROM wikidata_details_cache WHERE qid = ? AND fetched_at > ?",
+            (qid, cutoff_str),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                import json
+                p18_image: str | None = row[0]
+                sitelinks = json.loads(row[1]) if row[1] else []
+                return p18_image, sitelinks
+    return None
+
+
+async def set_cached_wikidata_details(
+    qid: str,
+    p18_image: str | None,
+    sitelinks: list[dict[str, str]],
+) -> None:
+    import json
+    now = datetime.now(timezone.utc).isoformat()
+    sitelinks_json = json.dumps(sitelinks)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO wikidata_details_cache (qid, p18_image, sitelinks_json, fetched_at) VALUES (?, ?, ?, ?)",
+            (qid, p18_image, sitelinks_json, now),
+        )
+        await db.commit()

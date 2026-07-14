@@ -162,3 +162,59 @@ async def test_cleanup_expired_cache(tmp_path):
         assert result == "fresh"
         result = await get_cached_label("Q2", "en")
         assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_set_cached_wikidata_details(tmp_path):
+    test_db = tmp_path / "labels.db"
+
+    with patch('bathing_route.label_cache.DB_PATH', test_db):
+        async with aiosqlite.connect(test_db) as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS wikidata_details_cache (
+                    qid TEXT PRIMARY KEY,
+                    p18_image TEXT,
+                    sitelinks_json TEXT NOT NULL,
+                    fetched_at TIMESTAMP NOT NULL
+                )
+            """)
+            await db.commit()
+
+        from bathing_route.label_cache import get_cached_wikidata_details, set_cached_wikidata_details
+
+        result = await get_cached_wikidata_details("Q1")
+        assert result is None
+
+        await set_cached_wikidata_details("Q1", "Beach.jpg", [{"lang": "en", "title": "Beach"}])
+        result = await get_cached_wikidata_details("Q1")
+        assert result is not None
+        p18, sitelinks = result
+        assert p18 == "Beach.jpg"
+        assert len(sitelinks) == 1
+        assert sitelinks[0]["lang"] == "en"
+
+
+@pytest.mark.asyncio
+async def test_get_cached_wikidata_details_expired(tmp_path):
+    test_db = tmp_path / "labels.db"
+
+    with patch('bathing_route.label_cache.DB_PATH', test_db):
+        async with aiosqlite.connect(test_db) as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS wikidata_details_cache (
+                    qid TEXT PRIMARY KEY,
+                    p18_image TEXT,
+                    sitelinks_json TEXT NOT NULL,
+                    fetched_at TIMESTAMP NOT NULL
+                )
+            """)
+            await db.execute(
+                "INSERT INTO wikidata_details_cache (qid, p18_image, sitelinks_json, fetched_at) VALUES (?, ?, ?, ?)",
+                ("Q1", "Beach.jpg", "[]", "2020-01-01T00:00:00")
+            )
+            await db.commit()
+
+        from bathing_route.label_cache import get_cached_wikidata_details
+
+        result = await get_cached_wikidata_details("Q1")
+        assert result is None

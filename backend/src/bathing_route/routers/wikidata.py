@@ -1,10 +1,16 @@
+import json
 import logging
 from typing import Any
 
 import httpx
 from fastapi import APIRouter
 
-from bathing_route.label_cache import get_cached_label, set_cached_label
+from bathing_route.label_cache import (
+    get_cached_label,
+    get_cached_wikidata_details,
+    set_cached_label,
+    set_cached_wikidata_details,
+)
 
 
 log = logging.getLogger(__name__)
@@ -12,7 +18,6 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/wikidata", tags=["wikidata"])
 
 USER_AGENT = "bathing-route/0.1 (Python; https://github.com/anomalyco/bathing-route)"
-COMMONS_FILE_URL = "https://commons.wikimedia.org/wiki/Special:FilePath/{filename}"
 
 
 async def _fetch_label(qid: str, lang: str) -> str | None:
@@ -27,24 +32,62 @@ async def _fetch_label(qid: str, lang: str) -> str | None:
                     if isinstance(data, str):
                         label: str | None = data
                     else:
-                        label = data.get(qid, {}).get("value")  # pragma: no cover
-                except Exception:  # pragma: no cover
+                        label = data.get(qid, {}).get("value")
+                except Exception:
                     text = response.text.strip()
                     label = text if text and text != "null" else None
                 return label
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             log.warning(f"Failed to fetch label for {qid}: {e}")
-    return None  # pragma: no cover
+    return None
     return None
 
 
-async def _fetch_entity_data(qid: str) -> dict[str, Any]:
-    url = f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json"
+async def _fetch_p18(qid: str) -> str | None:
+    url = f"https://www.wikidata.org/w/rest.php/wikibase/v1/entities/items/{qid}/statements?property=P18"
     headers = {"User-Agent": USER_AGENT}
     async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers, timeout=10.0)
-        response.raise_for_status()
-        return response.json()  # type: ignore[no-any-return]
+        try:
+            response = await client.get(url, headers=headers, timeout=10.0)
+            if response.status_code == 200:
+                data = response.json()
+                statements = data.get("statements", {}).get("P18", [])
+                for statement in statements:
+                    mainsnak = statement.get("mainsnak", {})
+                    datavalue = mainsnak.get("datavalue", {})
+                    value = datavalue.get("value")
+                    if value:
+                        return value
+        except Exception as e:
+            log.warning(f"Failed to fetch P18 for {qid}: {e}")
+    return None
+
+
+async def _fetch_sitelinks(qid: str) -> list[dict[str, str]]:
+    url = f"https://www.wikidata.org/w/rest.php/wikibase/v1/entities/items/{qid}/sitelinks"
+    headers = {"User-Agent": USER_AGENT}
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, headers=headers, timeout=10.0)
+            if response.status_code == 200:
+                data = response.json()
+                sitelinks: list[dict[str, str]] = []
+                for link in data.get("sitelinks", []):
+                    site = link.get("site", "")
+                    if not site.endswith("wiki") or site == "commonswiki":
+                        continue
+                    title = link.get("title", "").replace(" ", "_")
+                    lang_code = site.replace("wiki", "")
+                    wiki_url = f"https://{lang_code}.wikipedia.org/wiki/{title}"
+                    sitelinks.append({
+                        "lang": lang_code,
+                        "title": title,
+                        "url": wiki_url,
+                    })
+                return sitelinks
+        except Exception as e:
+            log.warning(f"Failed to fetch sitelinks for {qid}: {e}")
+    return []
 
 
 @router.get("/{qid}/details")
@@ -63,35 +106,18 @@ async def get_wikidata_details(qid: str, lang: str = "en") -> dict[str, Any]:
             label = fetched_label
         await set_cached_label(qid, lang, label)
 
-    entity_data = await _fetch_entity_data(qid)
-    entities = entity_data.get("entities", {})
-    entity = entities.get(qid, {})
-
-    claims = entity.get("claims", {})
+    cached_details = await get_cached_wikidata_details(qid)
+    if cached_details:
+        p18_image, wikipedia_urls = cached_details
+    else:
+        p18_image = await _fetch_p18(qid)
+        wikipedia_urls = await _fetch_sitelinks(qid)
+        await set_cached_wikidata_details(qid, p18_image, wikipedia_urls)
 
     image_url: str | None = None
-    p18_list = claims.get("P18", [])
-    for p18 in p18_list:
-        mainsnak = p18.get("mainsnak", {})
-        datavalue = mainsnak.get("datavalue", {})
-        value = datavalue.get("value")
-        if value:
-            filename = value.replace(" ", "_")
-            image_url = f"https://commons.wikimedia.org/wiki/Special:FilePath/{filename}"
-            break
-
-    sitelinks = entity.get("sitelinks", {})
-    wikipedia_urls: list[dict[str, str]] = []
-    for key, data in sitelinks.items():
-        if key.endswith("wiki"):
-            lang_code = key.replace("wiki", "")
-            title = data.get("title", "").replace(" ", "_")
-            url = f"https://{lang_code}.wikipedia.org/wiki/{title}"
-            wikipedia_urls.append({
-                "lang": lang_code,
-                "title": title,
-                "url": url,
-            })
+    if p18_image:
+        filename = p18_image.replace(" ", "_")
+        image_url = f"https://commons.wikimedia.org/wiki/Special:FilePath/{filename}"
 
     return {
         "qid": qid,
