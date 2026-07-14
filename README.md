@@ -65,9 +65,9 @@ flowchart TD
 
         H --> M[Check wikidata.db]
         M -->|miss| N[Wikidata REST API v1]
-        N --> O[/v1/entities/items/{id}/labels/{lang}]
-        N --> P[/v1/entities/items/{id}/statements property=P18]
-        N --> Q[/v1/entities/items/{id}/sitelinks]
+        N --> O[/v1/entities/items/id/labels/lang]
+        N --> P[/v1/entities/items/id/statements property=P18]
+        N --> Q[/v1/entities/items/id/sitelinks]
         M -->|hit| R[Return Cached]
         N --> S[wikidata.db 7-day TTL - label_cache wikidata_details_cache commons_cache]
         S --> R
