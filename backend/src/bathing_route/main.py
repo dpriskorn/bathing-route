@@ -26,8 +26,10 @@ def create_app() -> FastAPI:
     )
     from bathing_route.api import router as api_router
     from bathing_route.routers.wikidata import router as wikidata_router
+    from bathing_route.routers.commons import router as commons_router
     app.include_router(api_router)
     app.include_router(wikidata_router)
+    app.include_router(commons_router)
     return app
 
 

@@ -8,6 +8,7 @@ log = logging.getLogger(__name__)
 
 DB_PATH = Path(__file__).parent.parent.parent / "labels.db"
 CACHE_TTL_DAYS = 7
+COMMONS_CACHE_TTL_DAYS = 7
 
 
 async def init_db() -> None:
@@ -23,6 +24,17 @@ async def init_db() -> None:
         """)
         await db.execute("""
             CREATE INDEX IF NOT EXISTS idx_label_cache_fetched_at ON label_cache(fetched_at)
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS commons_cache (
+                filename TEXT PRIMARY KEY,
+                url TEXT NOT NULL,
+                thumburl TEXT,
+                fetched_at TIMESTAMP NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE INDEX IF NOT EXISTS idx_commons_cache_fetched_at ON commons_cache(fetched_at)
         """)
         await db.commit()
     log.info(f"Label database initialized at {DB_PATH}")
@@ -70,6 +82,39 @@ async def cleanup_expired_cache() -> int:
 
 async def clear_all_cache() -> int:
     async with aiosqlite.connect(DB_PATH) as db:
-        cursor = await db.execute("DELETE FROM label_cache")
+        cursor1 = await db.execute("DELETE FROM label_cache")
+        cursor2 = await db.execute("DELETE FROM commons_cache")
+        await db.commit()
+        return cursor1.rowcount + cursor2.rowcount
+
+
+async def get_cached_commons_image(filename: str) -> dict | None:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=COMMONS_CACHE_TTL_DAYS)
+    cutoff_str = cutoff.isoformat()
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT url, thumburl FROM commons_cache WHERE filename = ? AND fetched_at > ?",
+            (filename, cutoff_str),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return {"url": row[0], "thumburl": row[1]}
+    return None
+
+
+async def set_cached_commons_image(filename: str, url: str, thumburl: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO commons_cache (filename, url, thumburl, fetched_at) VALUES (?, ?, ?, ?)",
+            (filename, url, thumburl, now),
+        )
+        await db.commit()
+
+
+async def clear_commons_cache() -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("DELETE FROM commons_cache")
         await db.commit()
         return cursor.rowcount
