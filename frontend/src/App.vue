@@ -158,7 +158,7 @@ onMounted(async () => {
             </select>
           </label>
         </div>
-        <div class="layer-control">
+        <div v-if="data" class="layer-control">
           <label>{{ t('selectLayer') }}</label>
           <div v-for="item in layers" :key="item.layer.id" class="layer-option">
             <input
