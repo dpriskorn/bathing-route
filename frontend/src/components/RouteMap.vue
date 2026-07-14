@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
+import { batchFetchImageUrls, type CommonsImageInfo } from '../utils/commonsApi'
 import type {
   AnalyzeResponse,
   BathingSpotFeature,
@@ -27,6 +28,7 @@ let poiLayer: L.GeoJSON | null = null
 
 const zoom = ref(6)
 const center: L.LatLngExpression = [58.0, 14.0]
+const commonsUrlCache = ref<Record<string, CommonsImageInfo>>({})
 
 const routeCoords = computed<[number, number][]>(() => {
   if (!props.data) return []
@@ -57,7 +59,14 @@ function buildPopupHtml(qid: string): string {
   }
   let html = '<div class="p-2" style="min-width: 220px; max-width: 320px;">'
   if (details.image_url) {
-    html += `<a href="${details.image_url}" target="_blank" rel="noopener"><img src="${details.image_url}?width=400" class="img-fluid mb-2" style="max-height: 200px;" /></a>`
+    if (details.image_url.startsWith('Special:FilePath/')) {
+      html += `<a href="${details.image_url}" target="_blank" rel="noopener"><img src="${details.image_url}?width=400" class="img-fluid mb-2" style="max-height: 200px;" /></a>`
+    } else {
+      const cached = commonsUrlCache.value[details.image_url]
+      if (cached?.thumburl) {
+        html += `<a href="${cached.url}" target="_blank" rel="noopener"><img src="${cached.thumburl}" class="img-fluid mb-2" style="max-height: 200px;" /></a>`
+      }
+    }
   }
   html += `<h6>${details.label}</h6>`
   html += '<div class="mb-1">'
@@ -168,7 +177,16 @@ watch(() => props.data, () => {
   updateAllLayers()
 }, { deep: true })
 
-watch(() => props.spotDetails, () => {
+watch(() => props.spotDetails, async () => {
+  const filenames = Object.values(props.spotDetails)
+    .filter(d => d.image_url && !d.image_url.startsWith('Special:FilePath/'))
+    .map(d => d.image_url as string)
+
+  if (filenames.length > 0) {
+    const newUrls = await batchFetchImageUrls(filenames)
+    commonsUrlCache.value = { ...commonsUrlCache.value, ...newUrls }
+  }
+
   if (poiLayer) {
     poiLayer.eachLayer((layer) => {
       const marker = layer as L.CircleMarker

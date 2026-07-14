@@ -51,7 +51,7 @@ export interface AnalyzeResponse {
   buffer: BufferFeature
 }
 
-export type Backend = 'wdqs' | 'qlever'
+export type Backend = 'wdqs' | 'qlever' | 'wdqs-all'
 
 export interface CacheInfo {
   backend: string

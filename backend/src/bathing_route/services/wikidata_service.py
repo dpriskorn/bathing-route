@@ -26,6 +26,14 @@ SELECT DISTINCT ?item ?coord ?image WHERE {
 }
 """
 
+WD_ALL_QUERY = """
+SELECT DISTINCT ?item ?coord ?image WHERE {
+  ?item wdt:P31/wdt:P279* wd:Q567998 .
+  ?item wdt:P625 ?coord .
+  OPTIONAL { ?item wdt:P18 ?image }
+}
+"""
+
 
 class WikidataService:
     _instance: "WikidataService | None" = None
@@ -100,6 +108,62 @@ class WikidataService:
         self._loaded = True
         self._loaded_backend = backend
         log.info(f"Loaded {len(self._bathing_spots)} EU bathing spots from {backend}")
+
+    async def load_bathing_spots_all(self, backend: str = "wdqs-all") -> None:
+        if self._loaded and self._loaded_backend == backend:
+            return
+
+        cached = await get_cached_spots(backend)
+        if cached is not None:
+            self._bathing_spots, fetched_at = cached
+            self._loaded = True
+            self._loaded_backend = backend
+            log.info(f"Loaded {len(self._bathing_spots)} WD-all bathing spots from cache (fetched {fetched_at})")
+            return
+
+        full_query = SPARQL_PREFIXES + WD_ALL_QUERY
+
+        if backend == "qlever":
+            endpoint = "https://qlever.cs.uni-freiburg.de/api/wikidata"
+            params = {"query": full_query, "action": "json_export"}
+            log.info("Fetching WD-all bathing spots from QLever...")
+        else:
+            endpoint = "https://query.wikidata.org/sparql"
+            params = {"query": full_query, "format": "json"}
+            log.info("Fetching WD-all bathing spots from WDQS...")
+
+        response = requests.get(endpoint, params=params, headers={"User-Agent": USER_AGENT}, timeout=120.0)
+        response.raise_for_status()
+        data = response.json()
+
+        results = data.get("results", {}).get("bindings", [])
+        log.debug(f"SPARQL returned {len(results)} raw results")
+
+        self._bathing_spots = []
+        for r in results:
+            qid = self._extract_qid(r.get("item", {}).get("value", ""))
+            if not qid:
+                continue
+
+            coord_str = r.get("coord", {}).get("value", "")
+            coord = self._parse_coord(coord_str)
+            if not coord:
+                continue
+
+            image_value = r.get("image", {}).get("value")
+
+            self._bathing_spots.append(BathingSpot(
+                qid=qid,
+                lat=coord["lat"],
+                lon=coord["lon"],
+                image_url=image_value,
+            ))
+
+        await set_cached_spots(backend, self._bathing_spots)
+
+        self._loaded = True
+        self._loaded_backend = backend
+        log.info(f"Loaded {len(self._bathing_spots)} WD-all bathing spots from {backend}")
 
     def get_bathing_spots(self) -> list[BathingSpot]:
         if not self._loaded:

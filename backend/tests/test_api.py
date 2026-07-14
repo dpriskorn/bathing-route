@@ -128,3 +128,29 @@ def test_bathing_spots_count_not_loaded(client):
 
         response = client.get("/api/bathing-spots/count")
         assert response.status_code == 503
+
+
+def test_analyze_wdqs_all_backend(client):
+    gpx_content = b"""<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Test">
+<trk><name>Test</name><trkseg>
+<trkpt lat="58.0" lon="14.0"><ele>0</ele></trkpt>
+<trkpt lat="58.1" lon="14.1"><ele>0</ele></trkpt>
+</trkseg></trk></gpx>"""
+    files = {"file": ("route.gpx", BytesIO(gpx_content), "application/gpx+xml")}
+
+    mock_spots = [
+        type("BathingSpot", (), {"qid": "Q1", "lat": 58.05, "lon": 14.05, "image_url": "Beach.jpg"})(),
+    ]
+
+    async def mock_load_all(backend):
+        pass
+
+    with patch("bathing_route.api.wikidata_service.WikidataService") as MockWDS:
+        mock_instance = MockWDS.return_value
+        mock_instance.is_loaded.return_value = False
+        mock_instance.load_bathing_spots_all = mock_load_all
+        mock_instance.get_bathing_spots.return_value = mock_spots
+
+        response = client.post("/api/analyze", params={"backend": "wdqs-all"}, files=files)
+        assert response.status_code == 200

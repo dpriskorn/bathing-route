@@ -23,6 +23,7 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const bufferKm = ref(10)
 const backend = ref<Backend>('wdqs')
+const dataSource = ref<'eu' | 'all'>('eu')
 const cacheInfo = ref<CacheInfo | null>(null)
 const clearingCache = ref(false)
 
@@ -46,7 +47,8 @@ async function handleFileSelected(file: File) {
   error.value = null
   loading.value = true
   try {
-    data.value = await analyze(file, bufferKm.value, backend.value)
+    const effectiveBackend: Backend = dataSource.value === 'all' ? 'wdqs-all' : backend.value
+    data.value = await analyze(file, bufferKm.value, effectiveBackend)
     await refreshCacheInfo()
     await prefetchDetails()
   } catch (e) {
@@ -70,6 +72,18 @@ async function handleBufferChange(value: number) {
 async function handleBackendChange(value: Backend) {
   backend.value = value
   await refreshCacheInfo()
+  if (data.value) {
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = input?.files?.[0]
+    if (file) {
+      await handleFileSelected(file)
+    }
+  }
+}
+
+async function handleDataSourceChange() {
+  data.value = null
+  spotDetails.value = {}
   if (data.value) {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
     const file = input?.files?.[0]
@@ -116,9 +130,18 @@ async function handleClearCache() {
         <div class="backend-control">
           <label>
             Wikidata backend:
-            <select v-model="backend" @change="handleBackendChange(backend)" class="form-select">
+            <select v-model="backend" @change="handleBackendChange(backend)" class="form-select" :disabled="dataSource === 'all'">
               <option value="wdqs">WDQS (default)</option>
               <option value="qlever">QLever</option>
+            </select>
+          </label>
+        </div>
+        <div class="datasource-control">
+          <label>
+            {{ t('dataSource') }}:
+            <select v-model="dataSource" @change="handleDataSourceChange" class="form-select">
+              <option value="eu">{{ t('eubad') }}</option>
+              <option value="all">{{ t('allWdBathingSpots') }}</option>
             </select>
           </label>
         </div>
@@ -196,7 +219,8 @@ main {
 }
 
 .backend-control,
-.language-control {
+.language-control,
+.datasource-control {
   padding: 0.75rem;
   background: #fff;
   border-radius: 8px;
@@ -204,7 +228,8 @@ main {
 }
 
 .backend-control label,
-.language-control label {
+.language-control label,
+.datasource-control label {
   font-size: 0.9rem;
   color: #333;
   display: flex;
@@ -213,12 +238,18 @@ main {
 }
 
 .backend-control select,
-.language-control select {
+.language-control select,
+.datasource-control select {
   padding: 0.35rem;
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 0.9rem;
   cursor: pointer;
+}
+
+.backend-control select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .stats {

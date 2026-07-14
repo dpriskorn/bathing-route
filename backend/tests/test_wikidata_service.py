@@ -151,3 +151,41 @@ class TestWikidataServiceLoad:
             await svc.load_bathing_spots("qlever")
 
         assert mock_get.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_load_bathing_spots_all(self):
+        mock_data = {
+            "results": {
+                "bindings": [
+                    {
+                        "item": {"value": "http://www.wikidata.org/entity/Q1"},
+                        "coord": {"value": "Point(14.0 58.0)"},
+                        "image": {"value": "Beach_Panorama.jpg"},
+                    },
+                    {
+                        "item": {"value": "http://www.wikidata.org/entity/Q2"},
+                        "coord": {"value": "Point(15.0 59.0)"},
+                    },
+                ]
+            }
+        }
+
+        with patch("bathing_route.services.wikidata_service.get_cached_spots", return_value=None), \
+             patch("bathing_route.services.wikidata_service.set_cached_spots"), \
+             patch("bathing_route.services.wikidata_service.requests.get") as mock_get:
+            mock_response = mock_get.return_value
+            mock_response.raise_for_status.return_value = None
+            mock_response.json.return_value = mock_data
+
+            svc = WikidataService()
+            await svc.load_bathing_spots_all("wdqs-all")
+
+        spots = svc.get_bathing_spots()
+        assert len(spots) == 2
+        assert spots[0].qid == "Q1"
+        assert spots[0].lat == 58.0
+        assert spots[0].lon == 14.0
+        assert spots[0].image_url == "Beach_Panorama.jpg"
+        assert spots[1].qid == "Q2"
+        assert spots[1].image_url is None
+        assert svc.get_loaded_backend() == "wdqs-all"

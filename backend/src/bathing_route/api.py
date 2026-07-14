@@ -58,8 +58,8 @@ async def analyze(
     buffer_km: float = 10.0,
     backend: str = "wdqs",
 ) -> AnalyzeResponse:
-    if backend not in ("wdqs", "qlever"):
-        raise HTTPException(status_code=400, detail="backend must be 'wdqs' or 'qlever'")
+    if backend not in ("wdqs", "qlever", "wdqs-all"):
+        raise HTTPException(status_code=400, detail="backend must be 'wdqs', 'qlever', or 'wdqs-all'")
 
     if buffer_km < 1.0 or buffer_km > 50.0:
         raise HTTPException(status_code=400, detail="buffer_km must be between 1 and 50")
@@ -84,7 +84,10 @@ async def analyze(
     wikidata_svc = wikidata_service.WikidataService()
     if not wikidata_svc.is_loaded() or wikidata_svc.get_loaded_backend() != backend:
         log.info(f"Bathing spots not yet loaded for backend '{backend}', fetching...")
-        await wikidata_svc.load_bathing_spots(backend)
+        if backend == "wdqs-all":
+            await wikidata_svc.load_bathing_spots_all(backend)
+        else:
+            await wikidata_svc.load_bathing_spots(backend)
 
     all_spots = wikidata_svc.get_bathing_spots()
 
