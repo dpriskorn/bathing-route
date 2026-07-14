@@ -1,4 +1,5 @@
 {
+  "appTitle": "Find bathing sites along a GPX route",
   "uploadGpx": "Upload GPX file",
   "bufferKm": "Buffer (km)",
   "language": "Language",

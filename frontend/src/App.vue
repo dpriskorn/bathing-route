@@ -31,6 +31,7 @@ const layers = ref<LayerWithCount[]>([])
 const selectedLayerId = ref<string>('')
 const cacheInfo = ref<CacheInfo | null>(null)
 const clearingCache = ref(false)
+const sidebarOpen = ref(true)
 
 const selectedLayer = computed(() => layers.value.find(l => l.layer.id === selectedLayerId.value)?.layer)
 
@@ -140,9 +141,13 @@ async function handleClearCache() {
     await refreshLayers()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to clear cache'
-  } finally {
+  }   finally {
     clearingCache.value = false
   }
+}
+
+function toggleSidebar() {
+  sidebarOpen.value = !sidebarOpen.value
 }
 
 onMounted(async () => {
@@ -153,11 +158,16 @@ onMounted(async () => {
 <template>
   <div class="app">
     <header>
-      <h1>EU Bathing Spots Along Route</h1>
+      <button class="hamburger" @click="toggleSidebar" :class="{ open: sidebarOpen }">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <h1>{{ t('appTitle') }}</h1>
     </header>
 
     <main>
-      <aside class="sidebar">
+      <aside class="sidebar" :class="{ collapsed: !sidebarOpen }">
         <GpxUploader @file-selected="handleFileSelected" />
         <BufferControl v-model="bufferKm" @update:model-value="handleBufferChange" />
         <div class="backend-control">
@@ -220,6 +230,8 @@ onMounted(async () => {
           </button>
         </div>
       </aside>
+
+      <div v-if="sidebarOpen" class="overlay" @click="sidebarOpen = false"></div>
 
       <section class="map-section">
         <RouteMap
@@ -405,5 +417,89 @@ main {
 .map-section {
   flex: 1;
   position: relative;
+}
+
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  margin-right: 0.75rem;
+}
+
+.hamburger span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: white;
+  transition: transform 0.3s, opacity 0.3s;
+}
+
+.hamburger.open span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger.open span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+@media (max-width: 768px) {
+  .hamburger {
+    display: flex;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+  }
+
+  header h1 {
+    font-size: 1rem;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 52px;
+    height: calc(100vh - 52px);
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease, width 0.3s ease, padding 0.3s ease;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .sidebar:not(.collapsed) {
+    transform: translateX(0);
+  }
+
+  .sidebar.collapsed {
+    width: 0 !important;
+    padding: 0 !important;
+  }
+
+  .map-section {
+    width: 100%;
+  }
+
+  .overlay {
+    display: block;
+    position: fixed;
+    top: 52px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 999;
+  }
 }
 </style>

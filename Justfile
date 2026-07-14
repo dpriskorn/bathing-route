@@ -5,7 +5,7 @@ install:
     cd frontend && npm install --legacy-peer-deps
 
 api:
-    cd backend && PYTHONPATH=src uv run uvicorn bathing_route.main:app --reload --port 8000
+    cd backend && PYTHONPATH=src uv run uvicorn bathing_route.main:app --reload --port 8000 --host 0.0.0.0
 
 vite:
     cd frontend && npm run dev
