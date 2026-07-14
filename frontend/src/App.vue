@@ -84,8 +84,11 @@ async function handleFileSelected(file: File) {
 }
 
 async function handleFetchSpot(qid: string) {
+  console.log('[App] handleFetchSpot called:', qid, 'alreadyHas:', !!spotDetails.value[qid])
   if (spotDetails.value[qid]) return
+  console.log('[App] Fetching details for:', qid)
   const details = await getSpotDetails(qid, locale.value)
+  console.log('[App] Got details for:', qid, details)
   spotDetails.value = { ...spotDetails.value, [qid]: details }
 }
 

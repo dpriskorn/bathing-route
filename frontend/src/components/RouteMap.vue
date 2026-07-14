@@ -59,8 +59,10 @@ function buildPopupHtml(qid: string): string {
   const details = props.spotDetails[qid]
   if (!details) {
     if (loadingQids.value.has(qid)) {
+      console.log('[RouteMap] Showing loading spinner for:', qid)
       return `<div class="p-2"><div class="spinner-border spinner-border-sm" role="status"></div> ${t('loading')}...</div>`
     }
+    console.log('[RouteMap] No details for:', qid)
     return `<div class="p-2"><a href="https://www.wikidata.org/wiki/${qid}" target="_blank">${qid}</a></div>`
   }
   if (details.wikipedia_urls.length === 0) {
@@ -150,9 +152,11 @@ function updatePoiLayer() {
       const qid = feature.properties!.qid
       layer.bindPopup(() => buildPopupHtml(qid))
       layer.on('click', () => {
+        console.log('[RouteMap] Marker clicked:', qid, 'hasDetails:', !!props.spotDetails[qid], 'isLoading:', loadingQids.value.has(qid))
         if (!props.spotDetails[qid] && !loadingQids.value.has(qid)) {
           loadingQids.value.add(qid)
           emit('fetch-spot', qid)
+          console.log('[RouteMap] Emitted fetch-spot:', qid)
         }
       })
     },
@@ -196,6 +200,7 @@ watch(() => props.visibleQids, () => {
 })
 
 watch(() => props.spotDetails, async () => {
+  console.log('[RouteMap] spotDetails updated, keys:', Object.keys(props.spotDetails))
   for (const qid of loadingQids.value) {
     if (props.spotDetails[qid]) {
       loadingQids.value.delete(qid)
@@ -205,9 +210,11 @@ watch(() => props.spotDetails, async () => {
   const filenames = Object.values(props.spotDetails)
     .filter(d => d.image_url && d.image_url.includes('Special:FilePath/'))
     .map(d => d.image_url!.split('Special:FilePath/').pop()!)
+  console.log('[RouteMap] Filenames to fetch images for:', filenames)
 
   if (filenames.length > 0) {
     const newUrls = await batchFetchImageUrls(filenames)
+    console.log('[RouteMap] Got image URLs:', newUrls)
     commonsUrlCache.value = { ...commonsUrlCache.value, ...newUrls }
   }
 
@@ -228,6 +235,7 @@ watch(() => props.spotDetails, async () => {
 }, { deep: true })
 
 watch(commonsUrlCache, () => {
+  console.log('[RouteMap] commonsUrlCache updated, keys:', Object.keys(commonsUrlCache.value))
   if (poiLayer) {
     poiLayer.eachLayer((layer) => {
       const marker = layer as L.CircleMarker
