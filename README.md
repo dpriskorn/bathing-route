@@ -49,12 +49,15 @@ just fe-test   # Frontend only (vitest)
 - **GPX parsing**: gpxpy
 - **Geo buffering**: shapely + pyproj
 - **SPARQL backends**: Wikidata Query Service (default) or QLever
-- **Cache**: SQLite (aiosqlite), 24h TTL, stored at `backend/cache.db`
+- **Bathing spots cache**: SQLite (aiosqlite), 24h TTL, stored at `backend/sites.db`
+- **Labels cache**: SQLite (aiosqlite), 7-day TTL, stored at `backend/labels.db`
+- **Label source**: Wikidata REST API (labels never come from SPARQL)
 
 ### Frontend Details
 
 - **Framework**: Vue 3 + Vite + TypeScript
 - **Map**: Leaflet via vue-leaflet
+- **UI**: Bootstrap 5 + vue-i18n (English / Swedish)
 - **State**: Composables (`useRoute.ts`)
 
 ## Environment
