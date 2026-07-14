@@ -83,9 +83,14 @@ const poiStyle: L.CircleMarkerOptions = {
 function updatePoiLayer() {
   if (!map.value?.leafletObject) return
   const leaflet = map.value.leafletObject
+  if (!leaflet._loaded) return
 
   if (poiLayer.value) {
-    leaflet.removeLayer(poiLayer.value)
+    try {
+      leaflet.removeLayer(poiLayer.value)
+    } catch {
+      poiLayer.value = null
+    }
   }
 
   poiLayer.value = L.layerGroup()
@@ -107,24 +112,29 @@ watch(() => props.data, () => {
 })
 
 watch(() => props.spotDetails, () => {
-  if (!poiLayer.value) return
-  for (const layer of poiLayer.value.getLayers()) {
+  if (!poiLayer.value || !map.value?.leafletObject) return
+  const layers = poiLayer.value.getLayers()
+  for (const layer of layers) {
     const marker = layer as L.CircleMarker
+    if (!marker.getLatLng) continue
     const latlng = marker.getLatLng()
     const qid = bathingSpots.value.find(
       s => s.geometry.coordinates[1] === latlng.lat && s.geometry.coordinates[0] === latlng.lng
     )?.properties.qid
     if (qid) {
-      const spot = bathingSpots.value.find(s => s.properties.qid === qid)!
-      marker.setPopupContent(buildPopupHtml(spot))
+      const spot = bathingSpots.value.find(s => s.properties.qid === qid)
+      if (spot) {
+        marker.setPopupContent(buildPopupHtml(spot))
+      }
     }
   }
 }, { deep: true })
 
 onMounted(() => {
-  if (props.data) {
+  if (!props.data) return
+  setTimeout(() => {
     updatePoiLayer()
-  }
+  }, 0)
 })
 </script>
 
