@@ -92,6 +92,7 @@ async def cleanup_expired_cache() -> int:
 
 
 async def clear_all_cache() -> int:
+    await init_db()
     async with aiosqlite.connect(DB_PATH) as db:
         cursor1 = await db.execute("DELETE FROM label_cache")
         cursor2 = await db.execute("DELETE FROM commons_cache")
