@@ -119,12 +119,24 @@ export async function getSpotDetails(qid: string, lang: string): Promise<SpotDet
   return details
 }
 
-export async function batchFetchSpotDetails(qids: string[], lang: string): Promise<Record<string, SpotDetails>> {
+export async function batchFetchSpotDetails(
+  qids: string[],
+  lang: string,
+  onProgress?: (details: Record<string, SpotDetails>) => void
+): Promise<Record<string, SpotDetails>> {
   const uncached = qids.filter(qid => !getCachedSpotDetails(qid, lang))
-  if (uncached.length > 0) {
-    await Promise.all(uncached.map(qid => getSpotDetails(qid, lang)))
+  const results: Record<string, SpotDetails> = {}
+
+  for (const qid of uncached) {
+    const details = await getSpotDetails(qid, lang)
+    results[qid] = details
   }
-  return getAllCachedDetails(lang)
+
+  const all = { ...getAllCachedDetails(lang), ...results }
+  if (onProgress) {
+    onProgress(all)
+  }
+  return all
 }
 
 export function useRoute() {

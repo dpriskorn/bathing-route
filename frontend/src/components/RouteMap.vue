@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   LMap,
@@ -25,6 +25,8 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+
+const map = ref<any>(null)
 
 const zoom = ref(6)
 const center = ref<[number, number]>([58.0, 14.0])
@@ -54,6 +56,56 @@ const defaultIcon = L.icon({
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
+})
+
+function buildPopupHtml(spot: BathingSpotFeature): string {
+  const details = props.spotDetails[spot.properties.qid]
+  if (!details) {
+    return `<div class="p-2"><a href="https://www.wikidata.org/wiki/${spot.properties.qid}" target="_blank">${spot.properties.qid}</a></div>`
+  }
+  let html = '<div class="p-2" style="min-width: 220px; max-width: 320px;">'
+  if (details.image_url) {
+    html += `<a href="${details.image_url}" target="_blank" rel="noopener"><img src="${details.image_url}?width=400" class="img-fluid mb-2" style="max-height: 200px;" /></a>`
+  }
+  html += `<h6>${details.label}</h6>`
+  html += '<div class="mb-1">'
+  html += `<a href="${details.wikidata_url}" target="_blank" class="text-primary">${t('wikidata')}</a>`
+  if (details.wikipedia_urls.length > 0) {
+    html += ' | '
+    html += details.wikipedia_urls.map(w => `<a href="${w.url}" target="_blank">${w.lang}</a>`).join(' ')
+  }
+  html += '</div></div>'
+  return html
+}
+
+const markersLayer = ref<L.LayerGroup | null>(null)
+
+function updateMarkers() {
+  if (!map.value?.leafletObject || !props.data) return
+
+  if (!markersLayer.value) {
+    markersLayer.value = L.layerGroup().addTo(map.value.leafletObject)
+  } else {
+    markersLayer.value.clearLayers()
+  }
+
+  for (const spot of bathingSpots.value) {
+    const marker = L.marker(
+      [spot.geometry.coordinates[1], spot.geometry.coordinates[0]],
+      { icon: defaultIcon }
+    )
+    marker.bindPopup(buildPopupHtml(spot))
+    markersLayer.value.addLayer(marker)
+  }
+}
+
+watch(() => props.data, updateMarkers)
+watch(() => props.spotDetails, () => {
+  updateMarkers()
+}, { deep: true })
+
+onMounted(() => {
+  updateMarkers()
 })
 </script>
 
@@ -86,48 +138,6 @@ const defaultIcon = L.icon({
         :fill-opacity="0.1"
         :weight="2"
       />
-
-      <LMarker
-        v-for="spot in bathingSpots"
-        :key="spot.properties.qid"
-        :lat-lng="[spot.geometry.coordinates[1], spot.geometry.coordinates[0]]"
-        :icon="defaultIcon"
-      >
-        <template #popup>
-          <div v-if="spotDetails[spot.properties.qid]" class="p-2" style="min-width: 220px; max-width: 320px;">
-            <a
-              v-if="spotDetails[spot.properties.qid].image_url"
-              :href="spotDetails[spot.properties.qid].image_url"
-              target="_blank"
-              rel="noopener"
-            >
-              <img
-                :src="spotDetails[spot.properties.qid].image_url + '?width=400'"
-                class="img-fluid mb-2"
-                style="max-height: 200px; cursor: pointer;"
-              />
-            </a>
-            <h6>{{ spotDetails[spot.properties.qid].label }}</h6>
-            <div class="mb-1">
-              <a :href="spotDetails[spot.properties.qid].wikidata_url" target="_blank" class="text-primary">{{ t('wikidata') }}</a>
-              <span v-if="spotDetails[spot.properties.qid].wikipedia_urls.length">
-                | <a
-                  v-for="wiki in spotDetails[spot.properties.qid].wikipedia_urls"
-                  :key="wiki.lang"
-                  :href="wiki.url"
-                  target="_blank"
-                  class="text-decoration-none me-1"
-                >{{ wiki.lang }}</a>
-              </span>
-            </div>
-          </div>
-          <div v-else class="p-2">
-            <a :href="'https://www.wikidata.org/wiki/' + spot.properties.qid" target="_blank">
-              {{ spot.properties.qid }}
-            </a>
-          </div>
-        </template>
-      </LMarker>
     </LMap>
 
     <div v-if="loading" class="loading-overlay">

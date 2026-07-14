@@ -36,7 +36,9 @@ async function refreshCacheInfo() {
 async function prefetchDetails() {
   if (!data.value) return
   const qids = data.value.bathing_spots.features.map(f => f.properties.qid)
-  spotDetails.value = await batchFetchSpotDetails(qids, locale.value)
+  await batchFetchSpotDetails(qids, locale.value, (progress) => {
+    spotDetails.value = progress
+  })
 }
 
 async function handleFileSelected(file: File) {
