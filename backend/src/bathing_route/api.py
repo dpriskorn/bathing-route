@@ -4,6 +4,7 @@ from typing import Any, cast
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from bathing_route.cache import clear_cache, get_cache_info
+from bathing_route.label_cache import clear_all_cache as clear_label_cache
 from bathing_route.models import (
     AnalyzeResponse,
     BathingSpot,
@@ -32,14 +33,15 @@ async def cache_info(backend: str = "wdqs") -> dict[str, Any]:
 
 
 @router.delete("/cache")
-async def delete_cache(backend: str | None = None) -> dict[str, Any]:
+async def delete_cache(backend: str | None = None) -> dict[str, int]:
     if backend is not None and backend not in ("wdqs", "qlever"):
         raise HTTPException(status_code=400, detail="backend must be 'wdqs' or 'qlever'")
     if backend:
         wikidata_service.WikidataService._loaded = False
         wikidata_service.WikidataService._loaded_backend = None
-    deleted = await clear_cache(backend)
-    return {"deleted": deleted}
+    deleted_sites = await clear_cache(backend)
+    deleted_labels = await clear_label_cache()
+    return {"deleted_sites": deleted_sites, "deleted_labels": deleted_labels}
 
 
 @router.get("/bathing-spots/count")

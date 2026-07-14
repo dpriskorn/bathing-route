@@ -25,20 +25,26 @@ def client():
 
 
 def test_delete_cache_clears_singleton(client):
-    with patch("bathing_route.api.clear_cache") as mock_clear:
+    with patch("bathing_route.api.clear_cache") as mock_clear, \
+         patch("bathing_route.api.clear_label_cache") as mock_clear_labels:
         mock_clear.return_value = 10
+        mock_clear_labels.return_value = 5
         response = client.delete("/api/cache")
         assert response.status_code == 200
-        assert response.json()["deleted"] == 10
+        assert response.json()["deleted_sites"] == 10
+        assert response.json()["deleted_labels"] == 5
         assert WikidataService._loaded is False
 
 
 def test_delete_cache_with_backend(client):
-    with patch("bathing_route.api.clear_cache") as mock_clear:
+    with patch("bathing_route.api.clear_cache") as mock_clear, \
+         patch("bathing_route.api.clear_label_cache") as mock_clear_labels:
         mock_clear.return_value = 5
+        mock_clear_labels.return_value = 3
         response = client.delete("/api/cache?backend=wdqs")
         assert response.status_code == 200
-        assert response.json()["deleted"] == 5
+        assert response.json()["deleted_sites"] == 5
+        assert response.json()["deleted_labels"] == 3
         mock_clear.assert_called_once_with("wdqs")
 
 

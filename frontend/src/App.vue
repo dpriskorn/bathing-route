@@ -6,6 +6,7 @@ import BufferControl from './components/BufferControl.vue'
 import RouteMap from './components/RouteMap.vue'
 import {
   batchFetchSpotDetails,
+  clearSpotDetailsCache,
   type Backend,
   type CacheInfo,
   type SpotDetails,
@@ -89,6 +90,7 @@ async function handleClearCache() {
   clearingCache.value = true
   try {
     await clearCache()
+    clearSpotDetailsCache()
     cacheInfo.value = null
     data.value = null
     spotDetails.value = {}

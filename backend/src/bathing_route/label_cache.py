@@ -66,3 +66,10 @@ async def cleanup_expired_cache() -> int:
         deleted = cursor.rowcount
     log.info(f"Cleaned up {deleted} expired label cache entries")
     return deleted
+
+
+async def clear_all_cache() -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute("DELETE FROM label_cache")
+        await db.commit()
+        return cursor.rowcount

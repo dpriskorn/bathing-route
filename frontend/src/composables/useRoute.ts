@@ -139,6 +139,18 @@ export async function batchFetchSpotDetails(
   return all
 }
 
+export function clearSpotDetailsCache(): void {
+  const prefix = `${STORAGE_KEY}:`
+  const keys: string[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key?.startsWith(prefix)) {
+      keys.push(key)
+    }
+  }
+  keys.forEach(k => localStorage.removeItem(k))
+}
+
 export function useRoute() {
   const analyze = async (file: File, bufferKm: number, backend: Backend = 'wdqs'): Promise<AnalyzeResponse> => {
     const formData = new FormData()
@@ -167,7 +179,7 @@ export function useRoute() {
     return response.json()
   }
 
-  const clearCache = async (backend?: Backend): Promise<{ deleted: number }> => {
+  const clearCache = async (backend?: Backend): Promise<{ deleted_sites: number; deleted_labels: number }> => {
     const url = backend ? `/api/cache?backend=${backend}` : '/api/cache'
     const response = await fetch(url, { method: 'DELETE' })
     if (!response.ok) {
