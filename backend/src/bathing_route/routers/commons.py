@@ -7,7 +7,7 @@ from bathing_route.wikidata_cache import get_cached_commons_image, set_cached_co
 
 router = APIRouter(prefix="/api", tags=["commons"])
 
-USER_AGENT = "bathing-route/0.1 (Python; https://github.com/anomalyco/bathing-route)"
+USER_AGENT = "bathing-route/0.1 (Python; https://github.com/anomalyco/bathing-route; User:So9q)"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 
 

@@ -7,7 +7,7 @@ from bathing_route.cache import get_cached_spots, set_cached_spots
 from bathing_route.models import BathingSpot
 
 
-USER_AGENT = "bathing-route/0.1 (Python; https://github.com/anomalyco/bathing-route)"
+USER_AGENT = "bathing-route/0.1 (Python; https://github.com/anomalyco/bathing-route; User:So9q)"
 log = logging.getLogger(__name__)
 
 SPARQL_PREFIXES = """
